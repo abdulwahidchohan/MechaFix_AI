@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { retrieveContext } from "@/lib/rag";
+import { MODELS } from "@/lib/ai/models";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
       : "N/A";
 
     const ragQuery = `${board} ${component} ${problemCategory} ${userMessage}`;
-    const { contextText: ragContext } = retrieveContext(ragQuery, 2);
+    const { contextText: ragContext } = await retrieveContext(ragQuery, 2);
 
     const systemInstruction = `You are MechaFix AI, an expert hardware diagnostic assistant specializing in embedded systems, microcontrollers, PCBs, and electronics.
 
@@ -88,7 +89,7 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
       parts: [{ text: userMessage }],
     });
 
-    const selectedModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const selectedModel = MODELS.diagnosisModel;
 
     const response = await ai.models.generateContent({
       model: selectedModel,

@@ -3,10 +3,8 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
 if (!getApps().length) {
-  // Try initializing with Application Default Credentials if available
-  // In development, FIREBASE_SERVICE_ACCOUNT_KEY must be set in .env
   try {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY 
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
       ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
       : undefined;
 
@@ -27,3 +25,11 @@ if (!getApps().length) {
 
 export const adminDb = getFirestore(getApp(), "ai-studio-1ff06b99-a6b1-4864-98f4-4ba50526effb");
 export const adminAuth = getAuth(getApp());
+
+export function getAdminAuth() {
+  return adminAuth;
+}
+
+export function getAdminFirestore() {
+  return adminDb;
+}

@@ -1,66 +1,54 @@
 # MechaFix AI Project Status
 
 ## Product Summary
-MechaFix AI is a hardware diagnostic lab application that enables users to troubleshoot circuit boards, microcontrollers, and electronic components using photo analysis and form context powered by Gemini AI.
+MechaFix AI is a hardware diagnostic lab application that enables users to troubleshoot circuit boards, microcontrollers, and electronic components using photo analysis, diagnostic state machines, annotated image overlays, pinout view, PDF exports, and AI-assisted troubleshooting powered by Gemini AI.
 
 ## Current Architecture
 - **Frontend Framework**: Next.js 15 (App Router), React 19, TypeScript
 - **Styling**: Tailwind CSS v4 with custom hybrid-neumorphic design tokens
 - **Authentication**: Firebase Authentication (Google Sign-In) with client AuthContext & server ID token verification via `firebase-admin`
 - **Database**: Firestore (`users/{uid}/diagnoses/{diagnosisId}`)
-- **AI Integration**: Server-side `@google/genai` with `gemini-2.5-flash`
+- **AI Integration**: Server-side `@google/genai`
+  - `GEMINI_DIAGNOSIS_MODEL`: `gemini-3.6-flash` (Primary reasoning & multimodal diagnosis)
+  - `GEMINI_FAST_MODEL`: `gemini-3.5-flash-lite` (Helper & metadata normalization)
+  - `GEMINI_EMBEDDING_MODEL`: `gemini-embedding-2` (Vector retrieval with TF-IDF fallback)
+  - `GEMINI_IMAGE_MODEL`: `gemini-3.1-flash-image` (Optional reference diagrams, disabled by default in free mode via `ENABLE_REFERENCE_DIAGRAMS=false`)
 - **Deployment Target**: Cloud Run / Node.js container (Port 3000)
 
-## Completed Features & Verification Audit
-- [x] Phase 1: Repository Audit & Structural Mapping
-  - Created `firebase-blueprint.json` with formal JSON schema for `Diagnosis` entity and `users/{userId}/diagnoses/{diagnosisId}` Firestore path.
-  - Added `"camera"` permission to `metadata.json`.
-- [x] Phase 2: Baseline Validation & Verification
-  - Verified `compile_applet` build success.
-  - Verified `lint_applet` clean run (0 errors).
-- [x] Phase 3: End-to-End Diagnosis Pipeline Verification
-  - Hardened `/api/gemini/analyze` with input length limits (100-1000 max length sanitization), 15MB payload cap, image MIME type validation, and strict JSON response structure fallback.
-- [x] Phase 4: Gemini 2.5 Flash Input/Output & Prompt Engineering Verification
-  - Enforced grounding rules in analyze prompt: distinguish visual findings from reported symptoms, zero invented pin numbers/ratings, mandate power disconnection before physical testing.
-- [x] Phase 5: Camera & Media Handling Verification
-  - Hardened `PhotoUploadModal.tsx` with `URL.revokeObjectURL(previewUrl)` cleanup on file change/removal/modal close, Escape key handler, and stream track stop.
-- [x] Phase 6: Mobile Navigation & Responsiveness Audit
-  - Verified touch targets, Escape key listener, backdrop click dismiss, and body scroll lock cleanup in `Sidebar.tsx`.
-- [x] Phase 7: Diagnosis Lifecycle & Repair History Verification
-  - Hardened `/api/diagnoses/status` route with valid status enum checks (`in_progress`, `resolved`, `partially_resolved`) and input sanitization.
-- [x] Phase 8: Interactive AI Follow-Up Chat Verification
-  - Updated `/api/gemini/follow-up` to safely resolve nested `initialContext.setup` data from Firestore docs, enforce max input limits, bound conversation history length, and enforce non-negotiable safety rules (smoke/burning smell alerts, high-voltage mains refusal).
-- [x] Phase 9: Report Export & Print Quality Audit
-  - Hardened `ReportView.tsx` markdown generator against empty/undefined arrays and missing fields.
-- [x] Phase 10: Security, Firebase Rules & Red Team Hardening
-  - Created and deployed `firestore.rules` using `deploy_firebase` with default-deny rules and authenticated user-scoped authorization (`request.auth.uid == userId`).
-- [x] Phase 11: Accessibility & UX Precision Audit
-  - Ensured WCAG contrast, proper aria-labels, and keyboard shortcuts across navigation and modals.
-- [x] Phase 12: Performance & Reliability Audit
-  - Verified zero memory leaks in camera/file object URLs, clean error state propagation, and lightweight client state.
-- [x] Phase 13: Final Release Engineering & Documentation Update
-  - Updated `PROJECT_STATUS.md`, `README.md`, `.env.example`, `firebase-blueprint.json`, and `firestore.rules`.
+## Active Advanced Modules & Verification Status
+- [x] **Automatic Diagnostic State Machine**: Dynamic state machine tracking `currentDiagnosticStep`, `activeHypotheses`, and `diagnosticProgress` timeline.
+- [x] **Multiple-Image Evidence**: Support for up to 5 evidence attachments with per-image quality assessment.
+- [x] **Annotated Image Overlays**: Normalized bounding box overlays (0 to 1000 scale) highlighting observed components and potential faults.
+- [x] **Verified Pinout Viewer**: Interactive pinout viewer for Arduino, ESP32, and Raspberry Pi Pico with disclaimer notices for unverified board variants.
+- [x] **Direct PDF Export**: Client-side client report generation with multi-page safety and sanitized metadata.
+- [x] **Reference Diagram Generation**: Migrated away from deprecated Imagen to `gemini-3.1-flash-image`, featuring a fallback vector schematic engine and safety refusal checks.
+- [x] **Model Governance & Registry**: Model registry (`/lib/ai/models.ts`) enforcing feature allowlists, startup validation, and free-tier fallback handling.
 
 ## Firestore Data Model
 - Collection: `users/{userId}/diagnoses/{diagnosisId}`
   - `version`: string ("1.0")
   - `createdAt`: serverTimestamp
   - `updatedAt`: serverTimestamp
-  - `status`: "in_progress" | "resolved" | "partially_resolved"
+  - `status`: "in_progress" | "resolved" | "partially_resolved" | "safety_stop"
   - `setup`: `{ board, component, powerSource, problemCategory }`
   - `originalInput`: `{ expectedBehavior, actualBehavior, errorMessage, notes, evidenceType }`
   - `result`: `{ issue_summary, components_detected, potential_causes, troubleshooting_steps, safetyLevel, currentDiagnosticStep, followUpQuestions }`
+  - `currentDiagnosticStep`: `{ stepId, title, instruction, rationale, expectedOutcome, options, dependsOnStepId, isFinalStep }`
+  - `activeHypotheses`: array of `{ id, title, probability, status, reasoning }`
+  - `diagnosticProgress`: array of step result records
+  - `evidenceList`: array of evidence image objects with annotations
   - `resolution`: `{ rootCause, actionTaken, finalNote, resolvedAt }`
 
 ## API Routes
-- `POST /api/gemini/analyze`: Parses form payload + image, invokes Gemini 2.5 Flash, stores diagnosis in Firestore under authenticated user.
-- `POST /api/diagnoses/status`: Validates and updates diagnosis status and resolution metadata.
-- `POST /api/gemini/follow-up`: Contextual hardware chat follow-up powered by Gemini 2.5 Flash with strict safety system instructions.
+- `POST /api/gemini/analyze`: Multi-image analysis & initial state machine generation via `gemini-3.6-flash`.
+- `POST /api/diagnoses/step-result`: Evaluates test results, updates state machine hypotheses, and generates next diagnostic step.
+- `POST /api/gemini/follow-up`: Contextual hardware chat follow-up powered by `gemini-3.6-flash` with safety system instructions.
+- `POST /api/gemini/generate-reference-diagram`: Generates educational reference schematics using `gemini-3.1-flash-image` (when enabled) with fallback vector graphics.
 
 ## Security Controls
-- **Zero-Trust Rules**: Implemented in `firestore.rules` and deployed to Firebase project `mystic-core-pgtt6`.
-- **Server-Side AI Proxy**: All Gemini API calls proxy strictly server-side (`process.env.GEMINI_API_KEY`).
+- **Zero-Trust Security Rules**: Deployed to Firestore project `mystic-core-pgtt6`.
+- **Server-Side AI Proxy**: All Gemini API keys stored securely in server environment (`process.env.GEMINI_API_KEY`).
 - **Token Verification**: User identity verified on all `/api/*` routes via Firebase Admin SDK.
 
 ## Change Log
-- 2026-07-25: Completed 13-phase comprehensive verification, security hardening, firestore rules deployment, and documentation update.
+- 2026-07-25: Completed model governance modernization, migrated image generation to `gemini-3.1-flash-image`, removed deprecated Gemini 2.0/2.5 active fallbacks, and updated model registry.

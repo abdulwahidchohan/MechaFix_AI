@@ -1,171 +1,190 @@
-import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
-import { retrieveContext } from "@/lib/rag";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
+import { runGeminiAnalysis, EvidenceInputPart } from "@/lib/ai/interactions";
+import { buildAnalysisPrompt } from "@/lib/ai/prompts";
+import { retrieveContext } from "@/lib/rag/retrieve";
+import { EvidenceItem, normalizeDiagnosis } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const token = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(token);
+    const decodedToken = await getAdminAuth().verifyIdToken(token);
     const userId = decodedToken.uid;
 
     const body = await req.json();
-    const sanitize = (val: any, maxLen: number = 500) => typeof val === "string" ? val.trim().slice(0, maxLen) : "";
+    const sanitize = (val: any, maxLen: number = 500) =>
+      typeof val === "string" ? val.trim().slice(0, maxLen) : "";
 
     const board = sanitize(body.board, 150) || "Unspecified Board";
     const component = sanitize(body.component, 150) || "Unspecified Component";
     const powerSource = sanitize(body.powerSource, 100) || "USB";
     const problemCategory = sanitize(body.problemCategory, 150) || "General Hardware Issue";
-    const expectedBehavior = sanitize(body.expectedBehavior, 1000) || "Component operates as intended";
-    const actualBehavior = sanitize(body.actualBehavior, 1000) || "Not functioning correctly";
+    const expectedBehavior = sanitize(body.expectedBehavior, 1000) || "Operates as expected";
+    const actualBehavior = sanitize(body.actualBehavior, 1000) || "Malfunctioning";
     const errorMessage = sanitize(body.errorMessage, 500);
     const notes = sanitize(body.notes, 1000);
     const evidenceType = sanitize(body.evidenceType, 50) || "photo";
-    const imageBase64 = typeof body.imageBase64 === "string" ? body.imageBase64 : undefined;
-    const rawMime = typeof body.mimeType === "string" ? body.mimeType.toLowerCase() : "";
+
+    // Handle single image or multiple images (up to 5)
+    const imagesPayload: Array<{
+      data: string;
+      mimeType: string;
+      evidenceType?: "photo" | "schematic" | "measurement_display" | "close_up_damage" | "other";
+    }> = [];
+
     const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    
-    if (imageBase64) {
-      if (!allowedMimes.includes(rawMime)) {
-        return NextResponse.json({ error: "Unsupported image format. Allowed formats: JPG, PNG, WebP." }, { status: 400 });
+
+    if (Array.isArray(body.images) && body.images.length > 0) {
+      for (const img of body.images.slice(0, 5)) {
+        if (typeof img.data === "string" && img.data.length <= 7.5 * 1024 * 1024) {
+          const mime = (img.mimeType || "image/jpeg").toLowerCase();
+          if (allowedMimes.includes(mime)) {
+            imagesPayload.push({
+              data: img.data,
+              mimeType: mime === "image/jpg" ? "image/jpeg" : mime,
+              evidenceType: img.evidenceType || "photo",
+            });
+          }
+        }
       }
-      // 5 MB binary file is ~7.3 MB in base64 string length
-      if (imageBase64.length > 7.5 * 1024 * 1024) {
-        return NextResponse.json({ error: "Image size exceeds maximum allowed limit of 5 MB." }, { status: 400 });
+    } else if (typeof body.imageBase64 === "string" && body.imageBase64.length <= 7.5 * 1024 * 1024) {
+      const mime = (body.mimeType || "image/jpeg").toLowerCase();
+      if (allowedMimes.includes(mime)) {
+        imagesPayload.push({
+          data: body.imageBase64,
+          mimeType: mime === "image/jpg" ? "image/jpeg" : mime,
+          evidenceType: "photo",
+        });
       }
     }
-    const mimeType = allowedMimes.includes(rawMime) ? rawMime : "image/jpeg";
+
+    // Convert to Gemini parts
+    const geminiImages: EvidenceInputPart[] = imagesPayload.map((img) => ({
+      inlineData: {
+        mimeType: img.mimeType,
+        data: img.data,
+      },
+    }));
 
     // Perform RAG Knowledge Base Retrieval
-    const ragQuery = `${board} ${component} ${problemCategory} ${actualBehavior} ${errorMessage} ${notes}`;
-    const { contextText: ragContext, sources: retrievedSources } = retrieveContext(ragQuery, 3);
+    const ragQuery = `${board} ${component} ${problemCategory} ${actualBehavior} ${errorMessage || ""} ${notes || ""}`;
+    const { contextText: ragContext, sources: retrievedSources } = await retrieveContext(ragQuery, 3);
 
-    const prompt = `You are MechaFix AI, a highly advanced hardware diagnostic assistant.
-Analyze the user's reported setup, symptoms, and provided image (if attached).
-
-HARDWARE SETUP:
-- Microcontroller Board: ${board}
-- Primary Component: ${component}
-- Power Source: ${powerSource}
-- Problem Category: ${problemCategory}
-
-USER REPORTED SYMPTOMS:
-- Expected Behavior: ${expectedBehavior}
-- Actual Behavior: ${actualBehavior}
-- Error Message / Code: ${errorMessage || "None provided"}
-- Additional Notes: ${notes || "None provided"}
-
-${ragContext ? `RETRIEVED KNOWLEDGE BASE CONTEXT:\n${ragContext}\n` : ""}
-SAFETY & DIAGNOSTIC RULES:
-1. Treat user-provided symptoms and board details as grounded facts.
-2. Distinguish clearly between:
-   - Directly observed visual findings in the image
-   - Information provided by the user
-   - Unverified / potential causes requiring multimeter tests
-3. NEVER invent pin numbers, component ratings, or precise voltage values that are not shown or provided.
-4. NEVER advise rewiring or touching components while power is connected. ALWAYS mandate disconnecting power first.
-5. If an image is attached, inspect component orientation, solder joints, pin labels, and visible burn or heat damage.
-6. If no image is attached, base analysis on electrical logic and typical component failure modes without inventing visual details.
-
-Return a strictly valid JSON response with the following keys:
-  "issue_summary": concise explanation of the probable issue
-  "components_detected": array of strings (components, ICs, or pins identified)
-  "potential_causes": array of strings (ordered by likelihood)
-  "troubleshooting_steps": array of actionable, safe step-by-step test instructions
-  "safetyLevel": "SAFE" | "CAUTION" | "HAZARD"
-  "currentDiagnosticStep": single immediate recommended next measurement or test
-  "followUpQuestions": array of 1 to 3 targeted follow-up questions
-  "imageUsable": boolean (true if image details, wiring, IC labels, or solder joints are readable; false if blurry, dark, cropped, or obscured)
-  "imageLimitations": array of strings explaining any image visibility issues (e.g., "Board labels unreadable", "Wiring obscured")
-`;
-
-    const parts: any[] = [{ text: prompt }];
-
-    if (imageBase64) {
-      parts.push({
-        inlineData: {
-          data: imageBase64,
-          mimeType: mimeType,
-        },
-      });
-    }
-
-    const selectedModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-
-    const response = await ai.models.generateContent({
-      model: selectedModel,
-      contents: [{ role: "user", parts }],
-      config: {
-        responseMimeType: "application/json",
-      },
+    // Build Prompt
+    const promptText = buildAnalysisPrompt({
+      setup: { board, component, powerSource, problemCategory },
+      originalInput: { expectedBehavior, actualBehavior, errorMessage, notes },
+      ragContext,
+      hasImages: geminiImages.length > 0,
     });
 
-    let rawParsed: any = {};
-    try {
-      rawParsed = JSON.parse(response.text || "{}");
-    } catch {
-      console.warn("Failed to parse Gemini response text as JSON:", response.text);
-    }
+    // Run Gemini Analysis
+    const rawAiOutput = await runGeminiAnalysis({
+      prompt: promptText,
+      images: geminiImages,
+    });
 
-    const aiResponse = {
-      issue_summary: typeof rawParsed.issue_summary === "string" ? rawParsed.issue_summary : "Hardware diagnostic review completed.",
-      components_detected: Array.isArray(rawParsed.components_detected) ? rawParsed.components_detected.map(String) : [component],
-      potential_causes: Array.isArray(rawParsed.potential_causes) ? rawParsed.potential_causes.map(String) : ["Power instability or wiring error"],
-      troubleshooting_steps: Array.isArray(rawParsed.troubleshooting_steps) ? rawParsed.troubleshooting_steps.map(String) : ["Disconnect power and inspect all wiring connections."],
-      safetyLevel: ["SAFE", "CAUTION", "HAZARD"].includes(rawParsed.safetyLevel) ? rawParsed.safetyLevel : "CAUTION",
-      currentDiagnosticStep: typeof rawParsed.currentDiagnosticStep === "string" ? rawParsed.currentDiagnosticStep : "Check VCC and GND continuity with a multimeter.",
-      followUpQuestions: Array.isArray(rawParsed.followUpQuestions) ? rawParsed.followUpQuestions.map(String) : ["What voltage do you measure across the power rails?"],
-      imageUsable: typeof rawParsed.imageUsable === "boolean" ? rawParsed.imageUsable : true,
-      imageLimitations: Array.isArray(rawParsed.imageLimitations) ? rawParsed.imageLimitations.map(String) : [],
+    // Structure Evidence Items
+    const evidenceList: EvidenceItem[] = imagesPayload.map((img, idx) => ({
+      id: `ev-${idx + 1}`,
+      mimeType: img.mimeType,
+      data: img.data,
+      evidenceType: img.evidenceType || "photo",
+      uploadedAt: new Date().toISOString(),
+      imageUsable: rawAiOutput.imageUsable !== false,
+      imageLimitations: rawAiOutput.imageLimitations || [],
+      annotations: (rawAiOutput.annotations || []).map((ann: any, aIdx: number) => ({
+        id: ann.id || `ann-${idx + 1}-${aIdx + 1}`,
+        evidenceId: `ev-${idx + 1}`,
+        label: ann.label || "Detected Component",
+        category: ann.category || "board",
+        box2d: Array.isArray(ann.box2d) && ann.box2d.length === 4 ? ann.box2d : [100, 100, 500, 500],
+        observation: ann.observation || "Detected during analysis.",
+        certaintyType: ann.certaintyType || "observed",
+      })),
+    }));
+
+    const resultData = {
+      issue_summary: rawAiOutput.issue_summary || "Hardware diagnostic review completed.",
+      components_detected: rawAiOutput.components_detected || [component],
+      potential_causes: (rawAiOutput.activeHypotheses || []).map((h: any) => h.title),
+      troubleshooting_steps: rawAiOutput.currentStep
+        ? [rawAiOutput.currentStep.instruction]
+        : ["Disconnect power and verify board wiring."],
+      safetyLevel: rawAiOutput.safetyLevel || "CAUTION",
+      safetyWarning: rawAiOutput.safetyWarning || "",
+      imageUsable: rawAiOutput.imageUsable !== false,
+      imageLimitations: rawAiOutput.imageLimitations || [],
+      annotations: evidenceList.flatMap((e) => e.annotations || []),
     };
 
-    // Save full document to Firestore
-    const docData = {
-      version: "1.0",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      status: "in_progress",
-      setup: {
-        board,
-        component,
-        powerSource,
-        problemCategory,
-      },
+    const docData: any = {
+      version: "2",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: rawAiOutput.safetyLevel === "HAZARD" ? "safety_stop" : "in_progress",
+      setup: { board, component, powerSource, problemCategory },
       originalInput: {
         expectedBehavior,
         actualBehavior,
         errorMessage,
         notes,
-        evidenceType: imageBase64 ? evidenceType : "text_only",
+        evidenceType: evidenceList.length > 0 ? evidenceType : "text_only",
       },
-      result: aiResponse,
+      result: resultData,
+      evidenceList,
+      activeHypotheses: (rawAiOutput.activeHypotheses || []).map((h: any, idx: number) => ({
+        id: h.id || `hyp-${idx + 1}`,
+        title: h.title || "Hardware Mismatch",
+        explanation: h.explanation || "Suspected cause based on initial symptoms.",
+        state: h.state || "suspected",
+        evidenceFor: h.evidenceFor || [],
+        evidenceAgainst: h.evidenceAgainst || [],
+      })),
+      currentStep: rawAiOutput.currentStep
+        ? {
+            id: rawAiOutput.currentStep.id || "step-1",
+            sequence: rawAiOutput.currentStep.sequence || 1,
+            title: rawAiOutput.currentStep.title || "Diagnostic Step 1",
+            instruction: rawAiOutput.currentStep.instruction || "Inspect power rails.",
+            reason: rawAiOutput.currentStep.reason || "Baseline verification.",
+            safetyNote: rawAiOutput.currentStep.safetyNote || "Ensure power is disconnected.",
+            expectedResult: rawAiOutput.currentStep.expectedResult || "Stable voltage reading.",
+            resultOptions: rawAiOutput.currentStep.resultOptions || ["Passed", "Failed", "Not Sure"],
+            requiresPowerDisconnected: rawAiOutput.currentStep.requiresPowerDisconnected !== false,
+            requiresMeasurement: !!rawAiOutput.currentStep.requiresMeasurement,
+            requestedMeasurementType: rawAiOutput.currentStep.requestedMeasurementType,
+            status: "current",
+          }
+        : null,
+      diagnosticProgress: [],
       retrievedSources: retrievedSources || [],
     };
 
-    const docRef = await adminDb
+    const db = getAdminFirestore();
+    const docRef = await db
       .collection("users")
       .doc(userId)
       .collection("diagnoses")
       .add(docData);
 
+    const createdRecord = normalizeDiagnosis({ id: docRef.id, ...docData });
+
     return NextResponse.json({
       success: true,
       id: docRef.id,
-      data: aiResponse,
-      record: { id: docRef.id, ...docData },
+      data: resultData,
+      record: createdRecord,
     });
   } catch (error: any) {
     console.error("Gemini API Error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to analyze diagnosis" },
+      { error: error?.message || "Failed to run diagnosis." },
       { status: 500 }
     );
   }
 }
-

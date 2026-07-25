@@ -142,9 +142,14 @@ Diagnostic records are stored in Cloud Firestore under `/diagnoses/{diagnosisId}
 Create `.env.local` using `.env.example`:
 
 ```env
-# Server-side Gemini API Key & Configurable Model
+# Server-side Gemini API Key & Model Configuration
 GEMINI_API_KEY=""
-GEMINI_MODEL="gemini-2.5-flash"
+GEMINI_DIAGNOSIS_MODEL="gemini-3.6-flash"
+GEMINI_FAST_MODEL="gemini-3.5-flash-lite"
+GEMINI_EMBEDDING_MODEL="gemini-embedding-2"
+GEMINI_IMAGE_MODEL="gemini-3.1-flash-image"
+ENABLE_REFERENCE_DIAGRAMS="false"
+RAG_MODE="tfidf"
 
 # Application URL
 APP_URL="https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app"

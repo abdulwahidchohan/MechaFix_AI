@@ -17,8 +17,8 @@ import { auth } from "@/lib/firebase";
 
 export default function Home() {
   const { user } = useAuth();
-  
-  const [viewState, setViewState] = useState<string>('dashboard');
+
+  const [viewState, setViewState] = useState<string>("dashboard");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
 
@@ -28,69 +28,53 @@ export default function Home() {
         setImageFile(e.detail.file);
       }
     };
-    
+
     const handleStartAnalysis = async (e: any) => {
       const formValues = e.detail?.formValues || {};
-      
+
       if (!auth.currentUser) {
         alert("Please sign in first to run an AI diagnosis.");
         return;
       }
 
-      setViewState('processing');
-      
+      setViewState("processing");
+
       try {
-        let idToken = await auth.currentUser.getIdToken(true);
-        let base64data: string | undefined = undefined;
-        let mimeType: string | undefined = undefined;
+        const idToken = await auth.currentUser.getIdToken(true);
 
-        if (imageFile) {
-          const reader = new FileReader();
-          reader.readAsDataURL(imageFile);
-          await new Promise((resolve) => {
-            reader.onloadend = () => {
-              base64data = reader.result?.toString().split(',')[1];
-              mimeType = imageFile.type;
-              resolve(null);
-            };
-          });
-        }
-
-        const response = await fetch('/api/gemini/analyze', {
-          method: 'POST',
+        const response = await fetch("/api/gemini/analyze", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
           },
           body: JSON.stringify({
             ...formValues,
-            imageBase64: base64data,
-            mimeType,
-          })
+          }),
         });
-        
+
         const result = await response.json();
         if (result.success) {
           setAnalysisResult(result.record || { data: result.data });
-          setViewState('report');
+          setViewState("report");
         } else {
           console.error(result.error);
           alert(`Analysis Error: ${result.error}`);
-          setViewState('dashboard');
+          setViewState("dashboard");
         }
       } catch (err: any) {
         console.error(err);
-        alert(`Request Error: ${err.message || 'Failed to submit analysis'}`);
-        setViewState('dashboard');
+        alert(`Request Error: ${err.message || "Failed to submit analysis"}`);
+        setViewState("dashboard");
       }
     };
 
-    document.addEventListener('photo-uploaded', handlePhotoUploaded);
-    document.addEventListener('start-analysis', handleStartAnalysis);
-    
+    document.addEventListener("photo-uploaded", handlePhotoUploaded);
+    document.addEventListener("start-analysis", handleStartAnalysis);
+
     return () => {
-      document.removeEventListener('photo-uploaded', handlePhotoUploaded);
-      document.removeEventListener('start-analysis', handleStartAnalysis);
+      document.removeEventListener("photo-uploaded", handlePhotoUploaded);
+      document.removeEventListener("start-analysis", handleStartAnalysis);
     };
   }, [imageFile]);
 
@@ -100,16 +84,38 @@ export default function Home() {
       <div className="flex-1 flex flex-col md:ml-[280px] w-full md:max-w-[calc(100%-280px)] h-screen overflow-hidden bg-background">
         <TopNav />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative">
-          {viewState === 'dashboard' && <Dashboard />}
-          {viewState === 'processing' && <ProcessingView imageFile={imageFile} />}
-          {viewState === 'report' && <ReportView result={analysisResult} reset={() => { setViewState('dashboard'); setImageFile(null); }} />}
-          {viewState === 'active-projects' && <ActiveProjectsView onViewReport={(result) => { setAnalysisResult(result); setViewState('report'); }} />}
-          {viewState === 'repair-history' && <RepairHistoryView onViewReport={(result) => { setAnalysisResult(result); setViewState('report'); }} />}
-          {viewState === 'safety-protocols' && <SafetyProtocolsView />}
-          {viewState === 'documentation' && <DocumentationView />}
+          {viewState === "dashboard" && <Dashboard />}
+          {viewState === "processing" && <ProcessingView imageFile={imageFile} />}
+          {viewState === "report" && (
+            <ReportView
+              result={analysisResult}
+              reset={() => {
+                setViewState("dashboard");
+                setImageFile(null);
+              }}
+            />
+          )}
+          {viewState === "active-projects" && (
+            <ActiveProjectsView
+              onViewReport={(result) => {
+                setAnalysisResult(result);
+                setViewState("report");
+              }}
+            />
+          )}
+          {viewState === "repair-history" && (
+            <RepairHistoryView
+              onViewReport={(result) => {
+                setAnalysisResult(result);
+                setViewState("report");
+              }}
+            />
+          )}
+          {viewState === "safety-protocols" && <SafetyProtocolsView />}
+          {viewState === "documentation" && <DocumentationView />}
         </main>
       </div>
-      
+
       <NewDiagnosisDrawer />
       <PhotoUploadModal />
     </div>

@@ -121,4 +121,25 @@ body {
   background-color: var(--color-background);
   color: var(--color-text);
   font-family: var(--font-sans);
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* Form input placeholder contrast enhancement across themes */
+input::placeholder,
+textarea::placeholder {
+  color: var(--txt-muted);
+  opacity: 0.85;
+}
+
+/* Theme color transitions for container elements */
+.transition-theme {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+/* Page-break handling for printing reports */
+@media print {
+  .print-break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }

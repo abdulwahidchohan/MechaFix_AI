@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from "next/server";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
+
+export async function POST(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const token = authHeader.split("Bearer ")[1];
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    const { diagnosisId, measurement } = await req.json();
+
+    if (!diagnosisId || typeof diagnosisId !== "string") {
+      return NextResponse.json({ error: "Missing diagnosisId" }, { status: 400 });
+    }
+
+    if (!measurement || typeof measurement !== "object") {
+      return NextResponse.json({ error: "Missing measurement object" }, { status: 400 });
+    }
+
+    const docRef = adminDb
+      .collection("users")
+      .doc(userId)
+      .collection("diagnoses")
+      .doc(diagnosisId);
+
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      return NextResponse.json({ error: "Diagnosis not found" }, { status: 404 });
+    }
+
+    const currentMeasurements: any[] = docSnap.data()?.measurements || [];
+    const measId = typeof measurement.id === "string" && measurement.id.trim().length > 0
+      ? measurement.id.trim()
+      : `meas_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    const type = String(measurement.type || "Voltage");
+    const location = String(measurement.location || "Unspecified Node").slice(0, 200);
+    const value = String(measurement.value || "0").slice(0, 100);
+    const unit = String(measurement.unit || "V").slice(0, 50);
+
+    const existingDup = currentMeasurements.find(
+      (m: any) => m.id === measId || (m.type === type && m.location === location && m.value === value && m.unit === unit)
+    );
+
+    if (existingDup) {
+      return NextResponse.json({ success: true, measurement: existingDup, measurements: currentMeasurements, isDuplicate: true });
+    }
+
+    const newMeasurement = {
+      id: measId,
+      type,
+      location,
+      value,
+      unit,
+      notes: String(measurement.notes || "").slice(0, 500),
+      timestamp: new Date().toISOString(),
+      isUserReported: true,
+    };
+
+    const updatedMeasurements = [...currentMeasurements, newMeasurement];
+
+    await docRef.update({
+      measurements: updatedMeasurements,
+      updatedAt: new Date(),
+    });
+
+    return NextResponse.json({ success: true, measurement: newMeasurement, measurements: updatedMeasurements });
+  } catch (error: any) {
+    console.error("Save Measurement Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to save measurement" },
+      { status: 500 }
+    );
+  }
+}

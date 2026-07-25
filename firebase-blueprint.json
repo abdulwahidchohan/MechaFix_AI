@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "Diagnosis": {
+      "title": "Diagnosis",
+      "description": "Hardware diagnostic session record containing user setup, symptoms, and AI analysis.",
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Schema version string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when diagnosis was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when diagnosis was last updated"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["in_progress", "resolved", "partially_resolved"],
+          "description": "Diagnostic lifecycle status"
+        },
+        "setup": {
+          "type": "object",
+          "description": "Hardware board and component configuration"
+        },
+        "originalInput": {
+          "type": "object",
+          "description": "User reported symptoms and inputs"
+        },
+        "result": {
+          "type": "object",
+          "description": "Gemini AI diagnostic findings and steps"
+        },
+        "resolution": {
+          "type": "object",
+          "description": "Confirmation metadata recorded upon resolution"
+        },
+        "followUpHistory": {
+          "type": "array",
+          "description": "Interactive follow-up conversation history"
+        }
+      },
+      "required": ["version", "createdAt", "updatedAt", "status", "setup", "originalInput", "result"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/diagnoses/{diagnosisId}": {
+      "schema": {
+        "$ref": "#/entities/Diagnosis"
+      },
+      "description": "Private hardware diagnoses owned by the specified authenticated user."
+    }
+  }
+}

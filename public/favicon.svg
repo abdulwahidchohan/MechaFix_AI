@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#090d16" />
+    </linearGradient>
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Container -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad)" stroke="#334155" stroke-width="6" />
+
+  <!-- Outer Microchip Pins Accent -->
+  <g stroke="#38bdf8" stroke-width="6" opacity="0.4" stroke-linecap="round">
+    <!-- Top & Bottom Pins -->
+    <line x1="180" y1="52" x2="180" y2="80" />
+    <line x1="256" y1="52" x2="256" y2="80" />
+    <line x1="332" y1="52" x2="332" y2="80" />
+    <line x1="180" y1="432" x2="180" y2="460" />
+    <line x1="256" y1="432" x2="256" y2="460" />
+    <line x1="332" y1="432" x2="332" y2="460" />
+    <!-- Left & Right Pins -->
+    <line x1="52" y1="180" x2="80" y2="180" />
+    <line x1="52" y1="256" x2="80" y2="256" />
+    <line x1="52" y1="332" x2="80" y2="332" />
+    <line x1="432" y1="180" x2="460" y2="180" />
+    <line x1="432" y1="256" x2="460" y2="256" />
+    <line x1="432" y1="332" x2="460" y2="332" />
+  </g>
+
+  <!-- Main Circuit Board Chip Frame -->
+  <rect x="96" y="96" width="320" height="320" rx="44" fill="#1e293b" stroke="url(#primaryGrad)" stroke-width="8" />
+
+  <!-- Gear / Wrench Mechanical Symbol -->
+  <path d="M256,156 
+           C264,156 270,162 272,170 
+           L276,186 C289,191 301,198 312,207 
+           L327,199 C335,195 344,198 348,206 
+           L364,234 C368,242 366,251 359,256 
+           L345,266 C347,280 347,294 345,308 
+           L359,318 C366,323 368,332 364,340 
+           L348,368 C344,376 335,379 327,375 
+           L312,367 C301,376 289,383 276,388 
+           L272,404 C270,412 264,418 256,418 
+           C248,418 242,412 240,404 
+           L236,388 C223,383 211,376 200,367 
+           L185,375 C177,379 168,376 164,368 
+           L148,340 C144,332 146,323 153,318 
+           L167,308 C165,294 165,280 167,266 
+           L153,256 C146,251 144,242 148,234 
+           L164,206 C168,198 177,195 185,199 
+           L200,207 C211,198 223,191 236,186 
+           L240,170 C242,162 248,156 256,156 Z" 
+        fill="none" 
+        stroke="url(#primaryGrad)" 
+        stroke-width="14" 
+        stroke-linejoin="round" />
+
+  <!-- Center AI Node Core -->
+  <circle cx="256" cy="286" r="48" fill="#0f172a" stroke="url(#accentGrad)" stroke-width="8" />
+
+  <!-- AI Spark / Flash Bolt in Center -->
+  <path d="M256,250 L242,284 L258,284 L250,320 L270,282 L254,282 Z" fill="url(#accentGrad)" filter="url(#glow)" />
+
+  <!-- Corner Circuit Trace Dots -->
+  <circle cx="140" cy="140" r="10" fill="#38bdf8" />
+  <circle cx="372" cy="140" r="10" fill="#38bdf8" />
+  <circle cx="140" cy="432" r="8" fill="#34d399" />
+  <circle cx="372" cy="432" r="8" fill="#34d399" />
+</svg>

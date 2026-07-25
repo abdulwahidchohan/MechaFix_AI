@@ -1,8 +1,11 @@
 "use client";
 
 import { PRESETS, PresetConfig } from "@/lib/presets";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Dashboard({ onViewChange }: { onViewChange?: (view: string) => void }) {
+  const { user, signIn } = useAuth();
+
   const handlePresetClick = (preset: PresetConfig) => {
     document.dispatchEvent(
       new CustomEvent("open-diagnosis-with-preset", { detail: { preset } })
@@ -11,7 +14,73 @@ export default function Dashboard({ onViewChange }: { onViewChange?: (view: stri
 
   return (
     <div className="max-w-[1000px] mx-auto space-y-12 pb-12 animate-in fade-in zoom-in duration-500">
-      <section className="space-y-6 pt-4">
+      {!user && (
+        <section className="p-8 rounded-3xl bg-surface border border-border shadow-neu-raised space-y-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-mono text-xs uppercase tracking-wider">
+              <span>Public Product Guide</span>
+            </div>
+            <h1 className="font-sans text-3xl font-bold text-text">MechaFix AI</h1>
+            <p className="font-sans text-text-muted text-base leading-relaxed max-w-3xl">
+              AI-powered troubleshooting for Arduino, robotics, sensors, motors, and low-voltage electronics.
+              Upload a circuit photo, describe the problem, and receive grounded, safety-first troubleshooting one step at a time.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <div className="p-4 rounded-2xl bg-surface-sunken border border-border shadow-neu-pressed space-y-2">
+              <div className="flex items-center gap-2 text-primary font-semibold font-sans text-sm">
+                <span className="material-symbols-outlined text-lg">image_search</span>
+                <span>Image-Aware Diagnosis</span>
+              </div>
+              <p className="text-xs text-text-muted font-sans leading-relaxed">
+                Analyze circuit photos while clearly separating visible observations from unverified wiring assumptions.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-surface-sunken border border-border shadow-neu-pressed space-y-2">
+              <div className="flex items-center gap-2 text-primary font-semibold font-sans text-sm">
+                <span className="material-symbols-outlined text-lg">library_books</span>
+                <span>Grounded Guidance</span>
+              </div>
+              <p className="text-xs text-text-muted font-sans leading-relaxed">
+                Retrieve relevant troubleshooting knowledge from 12 curated electronics manuals with qualitative relevance badges.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-surface-sunken border border-border shadow-neu-pressed space-y-2">
+              <div className="flex items-center gap-2 text-primary font-semibold font-sans text-sm">
+                <span className="material-symbols-outlined text-lg">checklist</span>
+                <span>Guided Troubleshooting</span>
+              </div>
+              <p className="text-xs text-text-muted font-sans leading-relaxed">
+                Perform one safe test, log measurements, and receive step-by-step diagnostic progress without risk of high-voltage advice.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-border">
+            <button
+              onClick={signIn}
+              className="px-6 py-3 rounded-2xl bg-primary text-surface font-sans font-semibold text-sm shadow-neu-raised hover:brightness-110 transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-lg">login</span>
+              <span>Sign in with Google</span>
+            </button>
+            <a
+              href="https://github.com/abdulwahidchohan/mechafix-ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 rounded-2xl bg-surface-sunken text-text font-sans font-medium text-sm border border-border shadow-neu-pressed hover:bg-surface transition-all flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-lg">code</span>
+              <span>View Public GitHub Repository</span>
+            </a>
+          </div>
+        </section>
+      )}
+
+      <section className="space-y-6 pt-2">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-sunken text-primary border border-border shadow-neu-pressed w-max">
           <span className="material-symbols-outlined text-[16px]">image_search</span>
           <span className="font-sans text-sm font-medium tracking-wide uppercase">Photo-aware troubleshooting</span>

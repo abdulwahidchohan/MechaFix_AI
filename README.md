@@ -1,21 +1,55 @@
-# MechaFix AI - Next-Gen Hardware Diagnostic Laboratory
+# MechaFix AI
 
-**MechaFix AI** is an intelligent, full-stack hardware troubleshooting assistant built for electronics engineers, makers, educators, and IoT developers. It turns complex hardware symptoms, component error codes, and breadboard photos into precise, actionable step-by-step repair protocols powered by **Gemini 2.5 Flash**, **Cloud Firestore**, and a custom **Grounding RAG Knowledge Retrieval Pipeline**.
-
----
+AI-powered, image-aware hardware troubleshooting for robotics, mechatronics, and electronics students.
 
 ## Live Application
-- **Production Preview URL**: [https://ais-dev-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app](https://ais-dev-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app)
+- **Stable Production URL**: [https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app](https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app)
+
+## Public Repository
+- **GitHub Repository**: [https://github.com/abdulwahidchohan/mechafix-ai](https://github.com/abdulwahidchohan/mechafix-ai)
 
 ---
 
-## Real Problem & Target Audience
-Makers and engineers routinely waste hours diagnosing hardware failures caused by missing common grounds, power rail voltage dips (brownouts), missing I2C pull-up resistors, or improper motor driver pinouts. MechaFix AI synthesizes circuit logic, grounding knowledge, and visual photo inspection into immediate, safe troubleshooting steps.
+## Project Overview
+**MechaFix AI** is an intelligent, full-stack hardware troubleshooting assistant built for electronics engineers, makers, educators, and IoT developers. It turns complex hardware symptoms, component error codes, and breadboard photos into precise, actionable step-by-step repair protocols powered by **Gemini 2.5 Flash**, **Cloud Firestore**, and a lightweight local **Grounding RAG Knowledge Retrieval Pipeline**.
+
+> **Originality Statement**: MechaFix AI is not a general-purpose chatbot. It combines structured hardware context, multimodal circuit-image inspection, retrieval from a curated electronics knowledge base, manually logged measurements, and an evidence-aware troubleshooting workflow. The application separates visible observations, user-provided facts, unverified details, and possible explanations before recommending one safe diagnostic step at a time.
+
+---
+
+## Problem Statement
+Makers, students, and engineers routinely waste hours diagnosing hardware failures caused by missing common grounds, power rail voltage dips (brownouts), missing I2C pull-up resistors, or improper motor driver pinouts. Traditional web searches return scattered forums or generic advice, while raw AI models can hallucinate connection details or prescribe unsafe high-voltage steps.
+
+---
+
+## Target Users
+- **Robotics & Electronics Students**: Debugging sensor readings, motor driver connections, and microcontroller pinouts.
+- **Makers & Hobbyists**: Building IoT devices, home automation nodes, and breadboard prototypes.
+- **Lab Instructors & Educators**: Demonstrating systematic diagnostic workflows and safety-first electronics testing.
+
+---
+
+## Quick Demo Guide for Evaluators
+1. Open the [Live Application](https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app).
+2. Click **Sign in with Google** to initialize your private diagnostic session.
+3. On the main dashboard, select **HC-SR04 Returns Zero**.
+4. Review the prefilled setup:
+   - **Board**: Arduino UNO
+   - **Component**: HC-SR04 Ultrasonic Sensor
+   - **Problem Category**: Sensor Not Responding
+   - **Actual Behavior**: Sensor repeatedly returns zero.
+5. Click **Continue to Photo Inspection** (optionally upload a circuit photo or choose "Continue with Text-Only Diagnosis").
+6. Click **Generate AI Diagnosis Report**.
+7. Expand **Knowledge Sources** to inspect grounded manual excerpts with qualitative relevance badges (`Strong Match`, `Relevant Match`).
+8. Ask a follow-up question in the assistant composer:
+   `I measured 4.8 V between VCC and GND. What should I check next?`
+9. Log the measurement using the **Log Measurement** drawer.
+10. Mark the diagnosis as **Resolved** with a root cause note, then open **Repair History** to view or export the report as Markdown.
 
 ---
 
 ## Core Verified Features
-- **RAG Knowledge Retrieval Pipeline**: Queries 12 curated hardware troubleshooting manuals (`/knowledge/*.md`) using weighted TF-IDF keyword scoring to ground Gemini analysis and display qualitative relevance badges (Strong Match, Relevant Match, Related Source).
+- **RAG Knowledge Retrieval Pipeline**: Queries 12 curated hardware troubleshooting manuals (`/knowledge/*.md`) using weighted TF-IDF keyword scoring to ground Gemini analysis and display qualitative relevance badges (`Strong Match`, `Relevant Match`, `Related Source`).
 - **Image & Text Diagnosis**: Multi-modal photo inspection (5 MB max limit; JPG, PNG, WebP) and text-based failure breakdown.
 - **Image Quality Recovery Path**: In cases of low clarity or obscured components, users can smoothly transition to "Continue with Text-Only Diagnosis" while preserving form inputs and excluding unverified visual observations.
 - **Hardware Quick-Start Presets**: Instant prefill for common cases:
@@ -27,11 +61,24 @@ Makers and engineers routinely waste hours diagnosing hardware failures caused b
 - **Interactive AI Follow-Up Assistant**: Real-time contextual chat grounded in initial diagnostic findings and safety protocols.
 - **Diagnosis Lifecycle & Repair History**: Save, track, mark as resolved (with root cause recording), partially resolved, or reopen sessions synced real-time with Cloud Firestore.
 - **Report Actions**: One-click Markdown copy, `.md` report download, and clean print layout CSS.
-- **Hybrid Neumorphic UI & 5 Themes**: Cloud, Matcha, Peach Pop, Bubblegum, and Midnight themes.
+- **Hybrid Neumorphic UI & 5 Themes**: Cloud, Matcha, Peach Pop, Bubblegum, and Midnight themes with SSR hydration safety via `useSyncExternalStore`.
 
 ---
 
-## Hardware Knowledge Base (RAG Pipeline)
+## AI-Powered Diagnosis & Safety Guardrails
+MechaFix AI enforces strict system instructions to guarantee safe, evidence-grounded responses:
+- **Smoke / Burning Smell / Thermal Hazard**: Instructs immediate power disconnection and halts further testing.
+- **Exposed AC Mains (110V - 240V)**: Refuses procedural repair instructions and directs user to a licensed electrician.
+- **No Invented Measurements**: Never claims to have measured voltage, current, or pin levels without explicit user input.
+- **No Hidden-Wire Assumptions**: Clearly tags unverified connections as unconfirmed visual observations.
+- **One Test at a Time**: Delivers single, safe, actionable troubleshooting steps.
+
+---
+
+## RAG Knowledge Pipeline Explanation
+MechaFix AI uses a lightweight local RAG pipeline. The user’s query is matched against chunks from 12 curated Markdown troubleshooting manuals. The most relevant excerpts are included as grounded context in the Gemini request, and only the retrieved sources are displayed in the report.
+
+Curated Knowledge Base:
 1. `arduino-power.md`: Power loops, voltage drops, and decoupling capacitors.
 2. `common-ground.md`: Shared reference requirements between sub-circuits.
 3. `hc-sr04.md`: Ultrasonic distance timing, Echo voltage divider, and pulseIn timeouts.
@@ -47,29 +94,61 @@ Makers and engineers routinely waste hours diagnosing hardware failures caused b
 
 ---
 
-## AI System Prompt & Non-Negotiable Safety Protocols
-- **Smoke / Burning Smell / Thermal Hazard**: Instructs immediate power disconnection and halts testing.
-- **Exposed AC Mains (110V - 240V)**: Refuses procedural repair instructions and directs user to a licensed electrician.
-- **Separation of Fact & Inference**: Distinguishes between visual photo findings and user-reported symptoms without inventing unverified pinouts or component ratings.
+## Application Screenshots
+- **Dashboard & Presets**: `public/og-image.png`
+- **Grounded AI Diagnosis**: Interactive view displaying structured sections, grounded RAG cards, and follow-up composer.
 
 ---
 
-## Stable Technology Stack Used
-- **Frontend Framework**: Next.js 15.4.9 (App Router) — *Stable retained version preserving App Router compatibility and eliminating late-stage migration risks*
+## Technology Stack
+- **Frontend Framework**: Next.js 15.4.9 (App Router)
 - **UI Engine**: React 19.2.1 & React DOM 19.2.1
-- **Styling & Neumorphism**: Tailwind CSS 4.1.11 with custom PostCSS plugin configuration
-- **AI SDK**: `@google/genai` 2.4.0 (Server-side proxy with configurable model via `process.env.GEMINI_MODEL`, defaulting to `gemini-2.5-flash`)
-- **Database & Auth**: Firebase JS SDK 12.16.0 & Firebase Admin 14.2.0 (Cloud Firestore with real-time listeners)
-- **Icons & Animation**: `lucide-react` 0.553.0 & `motion` 12.23.24
+- **Styling**: Tailwind CSS 4.1.11 with custom PostCSS plugin configuration
+- **AI SDK**: `@google/genai` 2.4.0 (Server-side proxy via `/api/gemini/analyze` and `/api/gemini/follow-up`)
+- **Database & Auth**: Firebase JS SDK 12.16.0 & Firebase Admin 14.2.0 (Cloud Firestore with real-time user-isolated rules)
+- **Icons**: Material Symbols Outlined & Lucide React 0.553.0
 
 ---
 
-## Required Environment Variables
+## Cloud Firestore Structure
+Diagnostic records are stored in Cloud Firestore under `/diagnoses/{diagnosisId}` with user isolation:
+
+```json
+{
+  "userId": "firebase_uid",
+  "board": "Arduino UNO",
+  "component": "HC-SR04 Ultrasonic Sensor",
+  "powerSource": "USB 5V",
+  "problemCategory": "Sensor Not Responding",
+  "status": "In Progress",
+  "analysis": {
+    "observedInImage": [...],
+    "providedByUser": [...],
+    "unverified": [...],
+    "possibleCauses": [...],
+    "currentSafeStep": "...",
+    "knowledgeSources": [...]
+  },
+  "measurements": [...],
+  "followUpMessages": [...],
+  "createdAt": "ISO-8601 Timestamp"
+}
+```
+
+---
+
+## Local Installation & Environment Variables
+
+Create `.env.local` using `.env.example`:
 
 ```env
 # Server-side Gemini API Key & Configurable Model
 GEMINI_API_KEY=""
 GEMINI_MODEL="gemini-2.5-flash"
+
+# Application URL
+APP_URL="https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app"
+NEXT_PUBLIC_APP_URL="https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app"
 
 # Public Firebase Configuration (Client)
 NEXT_PUBLIC_FIREBASE_API_KEY=""
@@ -83,9 +162,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=""
 FIREBASE_SERVICE_ACCOUNT_KEY=""
 ```
 
----
-
-## Local Installation & Verification
+Run local development:
 
 ```bash
 # 1. Install dependencies
@@ -97,7 +174,7 @@ npm run lint
 # 3. Run type checking
 npm run typecheck
 
-# 4. Run test suite
+# 4. Run automated test suite
 npm run test
 
 # 5. Build production bundle
@@ -109,5 +186,40 @@ npm run start
 
 ---
 
-## License
-MIT License. See `LICENSE` for details.
+## Testing & Verification Results
+- `npm run lint`: **Passed cleanly with 0 errors and 0 warnings**
+- `npm run typecheck`: **Passed cleanly with 0 TypeScript errors**
+- `npm run test`: **Passed, 18 of 18 automated unit and API sanity tests**
+- `npm run build`: **Passed, production build generated successfully**
+
+---
+
+## Privacy Policy
+MechaFix AI uses Google Sign-In to identify the user and protect saved diagnostic sessions.
+
+The application processes:
+- Hardware setup information entered by the user
+- Uploaded circuit images when image-assisted diagnosis is requested (processed in memory for analysis, not stored as raw blobs in Cloud Firestore)
+- AI-generated diagnostic reports
+- Follow-up troubleshooting messages
+- User-reported measurements
+- Diagnosis resolution details
+
+Diagnosis records are stored in Cloud Firestore under the authenticated user's UID.
+
+Third-party services used:
+- Firebase Authentication
+- Cloud Firestore
+- Google Gemini API
+
+---
+
+## Limitations & Future Work
+- **Hardware Scope**: Currently optimized for low-voltage DC electronics (<30V), Arduino, ESP32, Raspberry Pi, and standard sensors/motor drivers.
+- **Future Improvements**: Multi-image comparative view, offline circuit diagram exporter, and expanded custom micro-controller pinout definitions.
+
+---
+
+## Author & License
+- **Author**: Abdul Wahid Chohan ([GitHub Profile](https://github.com/abdulwahidchohan))
+- **License**: MIT License. See `LICENSE` for details.

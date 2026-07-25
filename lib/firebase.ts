@@ -3,12 +3,12 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  projectId: "mystic-core-pgtt6",
-  appId: "1:447844057207:web:630d2ef62461c1ed070672",
-  apiKey: "AIzaSyCxNGifamrRJInkPeCfZr5FukqBfwOT3bQ",
-  authDomain: "mystic-core-pgtt6.firebaseapp.com",
-  storageBucket: "mystic-core-pgtt6.firebasestorage.app",
-  messagingSenderId: "447844057207"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDpJRYKZQraLQhEisCgNEmLnCB-fVi-7-M",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "hekto-awm.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "hekto-awm",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "hekto-awm.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "920507935916",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:920507935916:web:addb2991a3546f2ea70309"
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

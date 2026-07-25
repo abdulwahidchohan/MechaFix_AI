@@ -1,12 +1,12 @@
 {
-  "projectId": "mystic-core-pgtt6",
-  "appId": "1:447844057207:web:630d2ef62461c1ed070672",
-  "apiKey": "AIzaSyCxNGifamrRJInkPeCfZr5FukqBfwOT3bQ",
-  "authDomain": "mystic-core-pgtt6.firebaseapp.com",
+  "projectId": "hekto-awm",
+  "appId": "1:920507935916:web:addb2991a3546f2ea70309",
+  "apiKey": "AIzaSyDpJRYKZQraLQhEisCgNEmLnCB-fVi-7-M",
+  "authDomain": "hekto-awm.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-1ff06b99-a6b1-4864-98f4-4ba50526effb",
-  "storageBucket": "mystic-core-pgtt6.firebasestorage.app",
-  "messagingSenderId": "447844057207",
-  "measurementId": "",
-  "oAuthClientId": "447844057207-d397a5a1eqtlfv3co1124k9kf52pnq7b.apps.googleusercontent.com",
+  "storageBucket": "hekto-awm.firebasestorage.app",
+  "messagingSenderId": "920507935916",
+  "measurementId": "G-8Q29K5XQ8H",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

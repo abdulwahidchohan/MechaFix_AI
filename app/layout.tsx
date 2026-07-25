@@ -15,7 +15,7 @@ const jetBrainsMono = JetBrains_Mono({
 
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
-  'https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app';
+  'https://mecha-fix-ai.vercel.app';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   authors: [
     {
       name: 'Abdul Wahid Chohan',
-      url: 'https://github.com/abdulwahidchohan',
+      url: 'https://abdulwahidchohan.vercel.app',
     },
   ],
   creator: 'Abdul Wahid Chohan',
@@ -104,7 +104,11 @@ const jsonLd = {
   author: {
     '@type': 'Person',
     name: 'Abdul Wahid Chohan',
-    url: 'https://github.com/abdulwahidchohan',
+    url: 'https://abdulwahidchohan.vercel.app',
+    sameAs: [
+      'https://github.com/abdulwahidchohan/MechaFix_AI',
+      'https://github.com/abdulwahidchohan',
+    ],
   },
 };
 

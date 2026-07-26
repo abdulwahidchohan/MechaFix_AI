@@ -15,7 +15,6 @@ export async function runGeminiAnalysis(params: {
   prompt: string;
   images?: EvidenceInputPart[];
 }) {
-  const client = getGeminiClient();
   const primaryModel = MODELS.diagnosisModel;
 
   const parts: any[] = [{ text: params.prompt }];
@@ -25,7 +24,9 @@ export async function runGeminiAnalysis(params: {
     }
   }
 
+  let client: any = null;
   try {
+    client = getGeminiClient();
     const response = await client.models.generateContent({
       model: primaryModel,
       contents: { parts },
@@ -43,6 +44,7 @@ export async function runGeminiAnalysis(params: {
   } catch (err: any) {
     console.warn(`Primary model ${primaryModel} analysis failed, trying fallback:`, err?.message || err);
     try {
+      if (!client) client = getGeminiClient();
       const response = await client.models.generateContent({
         model: MODELS.fallbackDiagnosisModel,
         contents: { parts },
@@ -115,10 +117,11 @@ export async function runGeminiAnalysis(params: {
 export async function runStepEvaluation(params: {
   prompt: string;
 }) {
-  const client = getGeminiClient();
   const primaryModel = MODELS.diagnosisModel;
 
+  let client: any = null;
   try {
+    client = getGeminiClient();
     const response = await client.models.generateContent({
       model: primaryModel,
       contents: params.prompt,
@@ -134,6 +137,7 @@ export async function runStepEvaluation(params: {
   } catch (err: any) {
     console.warn(`Step evaluation with ${primaryModel} failed, trying fallback:`, err?.message || err);
     try {
+      if (!client) client = getGeminiClient();
       const response = await client.models.generateContent({
         model: MODELS.fallbackDiagnosisModel,
         contents: params.prompt,

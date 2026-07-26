@@ -3,7 +3,7 @@ import { MODELS } from "@/lib/ai/models";
 
 export async function GET() {
   return NextResponse.json({
-    referenceDiagrams: MODELS.isReferenceDiagramsEnabled,
+    referenceDiagrams: true,
     imageAnnotations: true,
     multipleImages: true,
     directPdf: true,

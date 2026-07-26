@@ -23,12 +23,13 @@ export default function ActiveProjectsView({ onViewReport }: { onViewReport: (re
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let localList: Diagnosis[] = [];
+    let localList: any[] = [];
     try {
       const localStr = typeof window !== "undefined" ? localStorage.getItem("mechafix_local_diagnoses") : null;
       if (localStr) {
         const parsed = JSON.parse(localStr);
         localList = (Array.isArray(parsed) ? parsed : []).map((item: any) => ({
+          ...item,
           id: item.id || `local-${Date.now()}`,
           createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
           context: item.setup?.board || item.context || "Circuit Analysis",
@@ -54,14 +55,15 @@ export default function ActiveProjectsView({ onViewReport }: { onViewReport: (re
         const fsDocs = snapshot.docs.map((doc) => {
           const data = doc.data();
           return {
+            ...data,
             id: doc.id,
             createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
             context: data.setup?.board || data.context || "Circuit Analysis",
             result: data.result || {},
-          } as Diagnosis;
+          };
         });
 
-        const combinedMap = new Map<string, Diagnosis>();
+        const combinedMap = new Map<string, any>();
         localList.forEach((d) => combinedMap.set(d.id, d));
         fsDocs.forEach((d) => combinedMap.set(d.id, d));
 
@@ -131,7 +133,7 @@ export default function ActiveProjectsView({ onViewReport }: { onViewReport: (re
                 </p>
               </div>
               <button 
-                onClick={() => onViewReport(diag.result)}
+                onClick={() => onViewReport(diag)}
                 className="w-full py-2.5 rounded-lg bg-surface-sunken text-primary font-sans font-semibold shadow-neu-pressed hover:bg-surface-dim transition-colors flex items-center justify-center gap-2 group-hover:text-primary-hover"
               >
                 View Full Report

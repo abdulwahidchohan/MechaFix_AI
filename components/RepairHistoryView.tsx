@@ -280,7 +280,7 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
                 {onViewReport && (
                   <button
                     type="button"
-                    onClick={() => onViewReport(item.result)}
+                    onClick={() => onViewReport(item)}
                     className="px-4 py-2 rounded-lg bg-primary text-surface font-sans font-semibold text-xs shadow-neu-raised hover:bg-primary-hover transition-all flex items-center gap-1.5"
                   >
                     View Report

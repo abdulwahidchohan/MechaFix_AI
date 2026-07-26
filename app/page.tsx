@@ -55,8 +55,17 @@ export default function Home() {
 
         const result = await response.json();
         if (result.success) {
-          setAnalysisResult(result.record || { data: result.data });
+          const rec = result.record || { data: result.data };
+          setAnalysisResult(rec);
           setViewState("report");
+
+          try {
+            const existingStr = localStorage.getItem("mechafix_local_diagnoses") || "[]";
+            const existing = JSON.parse(existingStr);
+            const filtered = Array.isArray(existing) ? existing.filter((d: any) => d.id !== rec.id) : [];
+            const updated = [rec, ...filtered].slice(0, 20);
+            localStorage.setItem("mechafix_local_diagnoses", JSON.stringify(updated));
+          } catch (e) {}
         } else {
           console.error(result.error);
           alert(`Analysis Error: ${result.error}`);

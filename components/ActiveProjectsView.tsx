@@ -23,31 +23,60 @@ export default function ActiveProjectsView({ onViewReport }: { onViewReport: (re
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    let localList: Diagnosis[] = [];
+    try {
+      const localStr = typeof window !== "undefined" ? localStorage.getItem("mechafix_local_diagnoses") : null;
+      if (localStr) {
+        const parsed = JSON.parse(localStr);
+        localList = (Array.isArray(parsed) ? parsed : []).map((item: any) => ({
+          id: item.id || `local-${Date.now()}`,
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+          context: item.setup?.board || item.context || "Circuit Analysis",
+          result: item.result || item,
+        }));
+      }
+    } catch (e) {}
 
-    // Real-time listener for user's diagnoses (cross-device sync)
-    // Securely scoped to the current user's document
+    if (!user) {
+      setDiagnoses(localList);
+      setLoading(false);
+      return;
+    }
+
     const q = query(
       collection(db, "users", user.uid, "diagnoses"),
       orderBy("createdAt", "desc")
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          context: data.context || "",
-          result: data.result || {}
-        } as Diagnosis;
-      });
-      setDiagnoses(docs);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching active projects:", error);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const fsDocs = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
+            context: data.setup?.board || data.context || "Circuit Analysis",
+            result: data.result || {},
+          } as Diagnosis;
+        });
+
+        const combinedMap = new Map<string, Diagnosis>();
+        localList.forEach((d) => combinedMap.set(d.id, d));
+        fsDocs.forEach((d) => combinedMap.set(d.id, d));
+
+        const combined = Array.from(combinedMap.values()).sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        );
+        setDiagnoses(combined);
+        setLoading(false);
+      },
+      (error) => {
+        console.warn("Active projects fetch notice:", error);
+        setDiagnoses(localList);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [user]);

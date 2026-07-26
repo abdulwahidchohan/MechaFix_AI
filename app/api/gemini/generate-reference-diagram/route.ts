@@ -4,19 +4,11 @@ import { getGeminiClient } from "@/lib/ai/client";
 import { MODELS } from "@/lib/ai/models";
 import { GeneratedReference, normalizeDiagnosis } from "@/lib/types";
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
-    if (!MODELS.isReferenceDiagramsEnabled) {
-      return NextResponse.json(
-        {
-          error:
-            "AI-generated reference diagrams require an image-generation-enabled deployment. Photo analysis and annotated overlays remain available.",
-        },
-        { status: 403 }
-      );
-    }
-
-    const authHeader = req.headers.get("authorization");
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

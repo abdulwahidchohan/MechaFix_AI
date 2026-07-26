@@ -66,7 +66,14 @@ export function ReferenceDiagramModal({
         }),
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        throw new Error(!res.ok ? `Server error (HTTP ${res.status}: ${res.statusText || "Server error"}).` : "Failed to parse diagram response.");
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to generate reference diagram.");
       }

@@ -112,6 +112,8 @@ const jsonLd = {
   },
 };
 
+import { Analytics } from '@vercel/analytics/next';
+
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className={`${plusJakartaSans.variable} ${jetBrainsMono.variable}`}>
@@ -125,6 +127,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
         <AuthProvider>
           {children}
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );

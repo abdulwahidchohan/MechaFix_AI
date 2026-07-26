@@ -28,16 +28,19 @@ export async function POST(req: NextRequest) {
     let initialContext: any = contextData || {};
 
     if (diagnosisId && typeof diagnosisId === "string") {
-      const docRef = adminDb
-        .collection("users")
-        .doc(userId)
-        .collection("diagnoses")
-        .doc(diagnosisId);
-      const docSnap = await docRef.get();
-      if (!docSnap.exists) {
-        return NextResponse.json({ error: "Diagnosis record not found or access denied" }, { status: 404 });
+      try {
+        const docRef = adminDb
+          .collection("users")
+          .doc(userId)
+          .collection("diagnoses")
+          .doc(diagnosisId);
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+          initialContext = docSnap.data() || {};
+        }
+      } catch (e) {
+        console.warn("Firestore follow-up lookup notice:", e);
       }
-      initialContext = docSnap.data() || {};
     }
 
     const board = initialContext.setup?.board || initialContext.board || "Generic PCB";

@@ -112,6 +112,7 @@ export default function ReportView({
         body: JSON.stringify({
           diagnosisId,
           ...data,
+          currentRecord: record,
         }),
       });
 

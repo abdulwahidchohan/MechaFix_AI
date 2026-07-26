@@ -165,20 +165,33 @@ export async function POST(req: NextRequest) {
       retrievedSources: retrievedSources || [],
     };
 
-    const db = getAdminFirestore();
-    const docRef = await db
-      .collection("users")
-      .doc(userId)
-      .collection("diagnoses")
-      .add(docData);
+    let docId = `session-${Date.now()}`;
+    let isPersistedInFirestore = false;
 
-    const createdRecord = normalizeDiagnosis({ id: docRef.id, ...docData });
+    try {
+      const db = getAdminFirestore();
+      const docRef = await db
+        .collection("users")
+        .doc(userId)
+        .collection("diagnoses")
+        .add(docData);
+      docId = docRef.id;
+      isPersistedInFirestore = true;
+    } catch (fsError: any) {
+      console.warn(
+        "Firestore persistence notice (Cloud Firestore API may be propagating or pending enable):",
+        fsError?.message || fsError
+      );
+    }
+
+    const createdRecord = normalizeDiagnosis({ id: docId, ...docData });
 
     return NextResponse.json({
       success: true,
-      id: docRef.id,
+      id: docId,
       data: resultData,
       record: createdRecord,
+      isPersistedInFirestore,
     });
   } catch (error: any) {
     console.error("Gemini API Error:", error);

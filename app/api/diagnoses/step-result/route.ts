@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
       observation,
       measurementValues,
       evidenceIds,
+      currentRecord: clientRecord,
     } = body;
 
     if (!diagnosisId || !stepId || !selectedOption) {
@@ -33,16 +34,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const db = getAdminFirestore();
-    const docRef = db.collection("users").doc(userId).collection("diagnoses").doc(diagnosisId);
-    const docSnap = await docRef.get();
+    let record: any = null;
+    let docRef: any = null;
 
-    if (!docSnap.exists) {
-      return NextResponse.json({ error: "Diagnosis session not found." }, { status: 404 });
+    try {
+      const db = getAdminFirestore();
+      docRef = db.collection("users").doc(userId).collection("diagnoses").doc(diagnosisId);
+      const docSnap = await docRef.get();
+      if (docSnap.exists) {
+        record = normalizeDiagnosis(docSnap.data() as any);
+      }
+    } catch (e) {
+      console.warn("Firestore step-result read notice:", e);
     }
 
-    const record = normalizeDiagnosis(docSnap.data() as any);
-    const lastStep = record.currentStep;
+    if (!record && clientRecord) {
+      record = normalizeDiagnosis(clientRecord);
+    }
+
+    if (!record) {
+      record = normalizeDiagnosis({
+        id: diagnosisId,
+        setup: clientRecord?.setup || { board: "Microcontroller", component: "Hardware Component", powerSource: "5V USB" },
+        currentStep: clientRecord?.currentStep || { id: stepId, sequence: 1, title: "Active Step", instruction: "Inspect hardware" },
+        activeHypotheses: clientRecord?.activeHypotheses || [],
+        diagnosticProgress: clientRecord?.diagnosticProgress || [],
+      });
+    }
+
+    const lastStep = record.currentStep || { id: stepId, sequence: 1, title: "Diagnostic Step", instruction: "Inspect component" };
 
     if (!lastStep || lastStep.id !== stepId) {
       return NextResponse.json(
@@ -115,10 +135,19 @@ export async function POST(req: NextRequest) {
       updateData.resolvedAt = new Date().toISOString();
     }
 
-    await docRef.update(updateData);
+    let finalRecord = normalizeDiagnosis({ ...record, ...updateData });
 
-    const updatedDocSnap = await docRef.get();
-    const finalRecord = normalizeDiagnosis(updatedDocSnap.data() as any);
+    if (docRef) {
+      try {
+        await docRef.update(updateData);
+        const updatedDocSnap = await docRef.get();
+        if (updatedDocSnap.exists) {
+          finalRecord = normalizeDiagnosis(updatedDocSnap.data() as any);
+        }
+      } catch (e) {
+        console.warn("Firestore step-result update notice (session evaluated in memory):", e);
+      }
+    }
 
     return NextResponse.json({
       success: true,

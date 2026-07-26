@@ -10,6 +10,13 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
+    if (!MODELS.isReferenceDiagramsEnabled) {
+      return NextResponse.json(
+        { error: "Reference diagram generation is disabled.", code: "FEATURE_DISABLED" },
+        { status: 403 }
+      );
+    }
+
     const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -83,25 +90,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!generatedImageBase64) {
-      const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" style="background:#f8fafc;font-family:sans-serif">
-  <rect x="20" y="20" width="760" height="560" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-  <text x="400" y="60" text-anchor="middle" font-size="22" font-weight="bold" fill="#0f172a">Reference Wiring Diagram: ${boardName} + ${compName}</text>
-  <rect x="80" y="140" width="280" height="360" rx="10" fill="#0284c7" stroke="#0369a1" stroke-width="3"/>
-  <text x="220" y="180" text-anchor="middle" font-size="18" font-weight="bold" fill="#ffffff">${boardName}</text>
-  <rect x="110" y="220" width="220" height="40" rx="4" fill="#0f172a"/>
-  <text x="220" y="245" text-anchor="middle" font-size="12" fill="#38bdf8">ATmega / Processor IC</text>
-  <rect x="440" y="180" width="280" height="280" rx="10" fill="#10b981" stroke="#047857" stroke-width="3"/>
-  <text x="580" y="220" text-anchor="middle" font-size="18" font-weight="bold" fill="#ffffff">${compName}</text>
-  <path d="M 360 280 Q 400 240 440 280" stroke="#ef4444" stroke-width="5" fill="none"/>
-  <text x="400" y="240" text-anchor="middle" font-size="12" font-weight="bold" fill="#ef4444">5V / VCC (Red)</text>
-  <path d="M 360 340 Q 400 320 440 340" stroke="#0f172a" stroke-width="5" fill="none"/>
-  <text x="400" y="315" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f172a">GND (Black)</text>
-  <path d="M 360 400 Q 400 400 440 400" stroke="#3b82f6" stroke-width="5" fill="none"/>
-  <text x="400" y="390" text-anchor="middle" font-size="12" font-weight="bold" fill="#2563eb">Signal / Data (Blue)</text>
-  <rect x="40" y="520" width="720" height="40" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
-  <text x="400" y="545" text-anchor="middle" font-size="12" font-weight="bold" fill="#b45309">Educational Reference Diagram. Verify pinouts with official manufacturer datasheets before applying power.</text>
-</svg>`;
-      generatedImageBase64 = `data:image/svg+xml;base64,${Buffer.from(fallbackSvg).toString("base64")}`;
+      return NextResponse.json(
+        { error: "AI Image Generation service is currently unavailable.", code: "SERVICE_UNAVAILABLE" },
+        { status: 503 }
+      );
     }
 
     const newReference: GeneratedReference = {

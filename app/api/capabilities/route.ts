@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   return NextResponse.json({
-    referenceDiagrams: true,
+    referenceDiagrams: MODELS.isReferenceDiagramsEnabled,
     imageAnnotations: true,
     multipleImages: true,
     directPdf: true,

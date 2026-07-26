@@ -191,69 +191,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       id: docId,
-      data: resultData,
+      data: rawAiOutput,
       record: createdRecord,
       isPersistedInFirestore,
     });
-  } catch (error: any) {
-    console.error("Gemini API Error, executing resilient fallback:", error);
-    const fallbackId = `session-${Date.now()}`;
-    const fallbackResult = {
-      issue_summary: "Hardware module communication failure or power instability detected.",
-      components_detected: ["Microcontroller Board", "Target Hardware Module", "Power Supply"],
-      potential_causes: [
-        "Loose jumper wire connection or improper pin alignment",
-        "Insufficient power rail voltage or voltage drop under load",
-        "Unshared common ground (GND) between sub-circuits"
-      ],
-      troubleshooting_steps: [
-        "Verify physical wiring connections and common ground (GND).",
-        "Measure VCC supply voltage with a multimeter under power.",
-        "Inspect signal and data lines for correct pin assignment."
-      ],
-      safetyLevel: "NORMAL",
-      safetyWarning: "",
-      imageUsable: true,
-      imageLimitations: [],
-      annotations: [],
-    };
-    const fallbackRecord = normalizeDiagnosis({
-      id: fallbackId,
-      version: "2",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: "in_progress",
-      setup: { board: "Microcontroller Board", component: "Target Module", powerSource: "USB", problemCategory: "General Hardware Issue" },
-      originalInput: { expectedBehavior: "Operate normally", actualBehavior: "Malfunctioning", evidenceType: "text_only" },
-      result: fallbackResult,
-      evidenceList: [],
-      activeHypotheses: [
-        { id: "hyp-1", title: "Wiring or Contact Resistance", explanation: "Loose breadboard clip or unseated pin.", state: "suspected", evidenceFor: ["Symptom match"], evidenceAgainst: [] },
-        { id: "hyp-2", title: "Missing Common Ground", explanation: "Microcontroller and external module do not share GND.", state: "suspected", evidenceFor: ["Signal noise"], evidenceAgainst: [] }
-      ],
-      currentStep: {
-        id: "step-1",
-        sequence: 1,
-        title: "Verify Physical Connections & Power Supply",
-        instruction: "Disconnect power, inspect each jumper wire, ensure firm contact, and verify common GND connection.",
-        reason: "Baseline diagnostic step to eliminate fundamental wiring faults.",
-        safetyNote: "Ensure power supply is disconnected before moving jumper wires.",
-        expectedResult: "All connections firmly seated and common GND established.",
-        resultOptions: ["Connections Firm & Ground Verified", "Loose Wire / Bad Pin Found", "No Common Ground Found"],
-        requiresPowerDisconnected: true,
-        requiresMeasurement: false,
-        status: "current"
+  } catch (err: any) {
+    console.error("Hardware Analysis Error:", err);
+    const status = err?.status || (err?.message?.includes("429") ? 429 : 503);
+    const code = err?.code || (status === 429 ? "GEMINI_QUOTA_EXCEEDED" : "SERVICE_UNAVAILABLE");
+    return NextResponse.json(
+      {
+        error: err?.message || "The AI diagnostic service is temporarily unavailable.",
+        code,
       },
-      diagnosticProgress: [],
-      retrievedSources: [],
-    });
-
-    return NextResponse.json({
-      success: true,
-      id: fallbackId,
-      data: fallbackResult,
-      record: fallbackRecord,
-      isPersistedInFirestore: false,
-    });
+      { status }
+    );
   }
 }

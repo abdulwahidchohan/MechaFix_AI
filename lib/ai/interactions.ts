@@ -33,9 +33,19 @@ export async function runGeminiAnalysis(params: {
   let client: any = null;
   try {
     client = getGeminiClient();
+
+    // Gemini multimodal API: images must come before text in parts array
+    const orderedParts: any[] = [];
+    if (params.images && params.images.length > 0) {
+      for (const img of params.images) {
+        orderedParts.push(img);
+      }
+    }
+    orderedParts.push({ text: params.prompt });
+
     const response = await client.models.generateContent({
       model: primaryModel,
-      contents: { parts },
+      contents: [{ role: "user", parts: orderedParts }],
       config: {
         systemInstruction: SYSTEM_SAFETY_INSTRUCTIONS,
         responseMimeType: "application/json",
@@ -55,7 +65,7 @@ export async function runGeminiAnalysis(params: {
       if (!client) client = getGeminiClient();
       const response = await client.models.generateContent({
         model: MODELS.fallbackDiagnosisModel,
-        contents: { parts },
+        contents: [{ role: "user", parts: orderedParts }],
         config: {
           systemInstruction: SYSTEM_SAFETY_INSTRUCTIONS,
           responseMimeType: "application/json",

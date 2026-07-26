@@ -4,6 +4,9 @@ import { runStepEvaluation } from "@/lib/ai/interactions";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { normalizeDiagnosis, StepResult } from "@/lib/types";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");

@@ -5,6 +5,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { retrieveContext } from "@/lib/rag";
 import { MODELS } from "@/lib/ai/models";
 
+export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {

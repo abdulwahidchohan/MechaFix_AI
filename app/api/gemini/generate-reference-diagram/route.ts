@@ -5,6 +5,7 @@ import { getGeminiClient } from "@/lib/ai/client";
 import { MODELS } from "@/lib/ai/models";
 import { GeneratedReference, normalizeDiagnosis } from "@/lib/types";
 
+export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {

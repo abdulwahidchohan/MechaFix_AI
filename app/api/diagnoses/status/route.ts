@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 
+export const runtime = "nodejs";
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization");

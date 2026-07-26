@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { MODELS } from "@/lib/ai/models";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   return NextResponse.json({
     referenceDiagrams: true,

@@ -32,15 +32,17 @@ export default function Home() {
     const handleStartAnalysis = async (e: any) => {
       const formValues = e.detail?.formValues || {};
 
-      if (!auth.currentUser) {
-        alert("Please sign in first to run an AI diagnosis.");
-        return;
-      }
-
       setViewState("processing");
 
       try {
-        const idToken = await auth.currentUser.getIdToken(true);
+        let idToken = "guest_user";
+        if (auth.currentUser) {
+          try {
+            idToken = await auth.currentUser.getIdToken(true);
+          } catch (e) {
+            idToken = "guest_user";
+          }
+        }
 
         const response = await fetch("/api/gemini/analyze", {
           method: "POST",

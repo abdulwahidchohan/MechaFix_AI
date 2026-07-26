@@ -26,23 +26,32 @@ export async function POST(req: NextRequest) {
 
 
     const body = await req.json();
-    const { diagnosisId, diagramTitle, board, component } = body;
+    const { diagnosisId, diagramTitle, board, component, currentRecord: clientRecord } = body;
 
     if (!diagnosisId) {
       return NextResponse.json({ error: "Missing required diagnosisId" }, { status: 400 });
     }
 
-    const db = getAdminFirestore();
-    const docRef = db.collection("users").doc(userId).collection("diagnoses").doc(diagnosisId);
-    const docSnap = await docRef.get();
+    let record: any = null;
+    let docRef: any = null;
 
-    if (!docSnap.exists) {
-      return NextResponse.json({ error: "Diagnosis session not found" }, { status: 404 });
+    try {
+      const db = getAdminFirestore();
+      docRef = db.collection("users").doc(userId).collection("diagnoses").doc(diagnosisId);
+      const docSnap = await docRef.get();
+      if (docSnap.exists) {
+        record = normalizeDiagnosis(docSnap.data() as any);
+      }
+    } catch (e) {
+      console.warn("Firestore generate-reference-diagram read notice:", e);
     }
 
-    const record = normalizeDiagnosis(docSnap.data() as any);
-    const boardName = board || record.setup.board || "Arduino UNO";
-    const compName = component || record.setup.component || "Sensor";
+    if (!record && clientRecord) {
+      record = normalizeDiagnosis(clientRecord);
+    }
+
+    const boardName = board || record?.setup?.board || "Arduino UNO";
+    const compName = component || record?.setup?.component || "Sensor";
 
     const promptText = `A clear, high-resolution technical educational wiring diagram showing how to wire a ${compName} to an ${boardName} board. Clean vector schematics style with color-coded jumper wires (Red for VCC/5V, Black for GND, Blue/Yellow for Signal data lines), labeled pin headers, breadboard layout, and high contrast against a neutral off-white background. Professional electronics engineering illustration.`;
 
@@ -106,10 +115,16 @@ export async function POST(req: NextRequest) {
 
     const updatedReferences = [...(record.generatedReferences || []), newReference];
 
-    await docRef.update({
-      generatedReferences: updatedReferences,
-      updatedAt: new Date().toISOString(),
-    });
+    if (docRef) {
+      try {
+        await docRef.update({
+          generatedReferences: updatedReferences,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn("Firestore reference diagram update notice:", e);
+      }
+    }
 
     return NextResponse.json({
       success: true,

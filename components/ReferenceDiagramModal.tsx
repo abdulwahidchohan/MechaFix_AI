@@ -10,6 +10,7 @@ interface ReferenceDiagramModalProps {
   diagnosisId: string;
   board: string;
   component: string;
+  currentRecord?: any;
   existingReferences?: GeneratedReference[];
   onReferenceGenerated?: (ref: GeneratedReference) => void;
   getAuthToken: () => Promise<string | null>;
@@ -22,6 +23,7 @@ export function ReferenceDiagramModal({
   diagnosisId,
   board,
   component,
+  currentRecord,
   existingReferences = [],
   onReferenceGenerated,
   getAuthToken,
@@ -60,6 +62,7 @@ export function ReferenceDiagramModal({
           board,
           component,
           diagramTitle: `Reference Diagram: ${board} + ${component}`,
+          currentRecord,
         }),
       });
 

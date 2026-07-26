@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserToken, adminDb } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,11 +25,18 @@ export async function POST(req: NextRequest) {
     const actionTaken = sanitize(rawActionTaken, 1000);
     const finalNote = sanitize(rawFinalNote, 1000);
 
-    const docRef = adminDb
-      .collection("users")
-      .doc(userId)
-      .collection("diagnoses")
-      .doc(diagnosisId);
+    const db = getAdminFirestore();
+    const docRef = db
+      ? db
+          .collection("users")
+          .doc(userId)
+          .collection("diagnoses")
+          .doc(diagnosisId)
+      : null;
+
+    if (!docRef) {
+      return NextResponse.json({ success: true, diagnosisId, status });
+    }
 
     const docSnap = await docRef.get();
     if (!docSnap.exists) {

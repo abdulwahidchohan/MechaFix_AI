@@ -179,13 +179,15 @@ export async function POST(req: NextRequest) {
 
     try {
       const db = getAdminFirestore();
-      const docRef = await db
-        .collection("users")
-        .doc(userId)
-        .collection("diagnoses")
-        .add(docData);
-      docId = docRef.id;
-      isPersistedInFirestore = true;
+      if (db) {
+        const docRef = await db
+          .collection("users")
+          .doc(userId)
+          .collection("diagnoses")
+          .add(docData);
+        docId = docRef.id;
+        isPersistedInFirestore = true;
+      }
     } catch (fsError: any) {
       console.warn(
         "Firestore persistence notice (Cloud Firestore API may be propagating or pending enable):",

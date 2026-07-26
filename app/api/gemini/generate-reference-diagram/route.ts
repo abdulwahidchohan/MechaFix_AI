@@ -28,10 +28,12 @@ export async function POST(req: NextRequest) {
 
     try {
       const db = getAdminFirestore();
-      docRef = db.collection("users").doc(userId).collection("diagnoses").doc(diagnosisId);
-      const docSnap = await docRef.get();
-      if (docSnap.exists) {
-        record = normalizeDiagnosis(docSnap.data() as any);
+      if (db) {
+        docRef = db.collection("users").doc(userId).collection("diagnoses").doc(diagnosisId);
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+          record = normalizeDiagnosis(docSnap.data() as any);
+        }
       }
     } catch (e) {
       console.warn("Firestore generate-reference-diagram read notice:", e);

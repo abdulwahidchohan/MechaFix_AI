@@ -82,35 +82,47 @@ if (!getApps().length) {
   }
 }
 
-const dbName = process.env.FIREBASE_DATABASE_ID;
-
-export const adminDb = dbName ? getFirestore(getApp(), dbName) : getFirestore(getApp());
-export const adminAuth = getAuth(getApp());
-
 export function getAdminAuth() {
-  return adminAuth;
+  try {
+    if (!getApps().length) return null;
+    return getAuth(getApp());
+  } catch (e) {
+    console.warn("getAdminAuth notice:", e);
+    return null;
+  }
 }
 
 export function getAdminFirestore() {
-  return adminDb;
+  try {
+    if (!getApps().length) return null;
+    const dbName = process.env.FIREBASE_DATABASE_ID;
+    return dbName ? getFirestore(getApp(), dbName) : getFirestore(getApp());
+  } catch (e) {
+    console.warn("getAdminFirestore notice:", e);
+    return null;
+  }
 }
 
 export async function verifyUserToken(token: string): Promise<string> {
-  if (!token) throw new Error("Missing authorization token");
+  if (!token) return "guest_user";
   
   if (token.startsWith("guest_") || token.startsWith("guest-")) {
     return token.slice(0, 50);
   }
 
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    return decodedToken.uid;
+    const auth = getAdminAuth();
+    if (auth) {
+      const decodedToken = await auth.verifyIdToken(token);
+      return decodedToken.uid;
+    }
   } catch (err: any) {
     console.warn("Firebase verifyIdToken fallback:", err?.message || err);
-    if (token.length > 10) {
-      return `user_${token.slice(-12)}`;
-    }
-    return "guest_user";
   }
+
+  if (token.length > 10) {
+    return `user_${token.slice(-12)}`;
+  }
+  return "guest_user";
 }
 

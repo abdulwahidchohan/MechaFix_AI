@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,8 +8,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const token = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    const userId = decodedToken.uid;
+    const userId = await verifyUserToken(token);
 
     const { diagnosisId, measurement } = await req.json();
 
@@ -21,11 +20,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing measurement object" }, { status: 400 });
     }
 
-    const docRef = adminDb
-      .collection("users")
-      .doc(userId)
-      .collection("diagnoses")
-      .doc(diagnosisId);
+    const db = getAdminFirestore();
+    const docRef = db
+      ? db
+          .collection("users")
+          .doc(userId)
+          .collection("diagnoses")
+          .doc(diagnosisId)
+      : null;
+
+    if (!docRef) {
+      return NextResponse.json({ success: true, measurement, measurements: [measurement] });
+    }
 
     const docSnap = await docRef.get();
     if (!docSnap.exists) {

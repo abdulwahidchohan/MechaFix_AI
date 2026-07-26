@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserToken, adminDb } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { retrieveContext } from "@/lib/rag";
 import { MODELS } from "@/lib/ai/models";
@@ -36,9 +36,11 @@ export async function POST(req: NextRequest) {
 
     let initialContext: any = contextData || {};
 
-    if (diagnosisId && typeof diagnosisId === "string") {
+    const db = getAdminFirestore();
+
+    if (diagnosisId && typeof diagnosisId === "string" && db) {
       try {
-        const docRef = adminDb
+        const docRef = db
           .collection("users")
           .doc(userId)
           .collection("diagnoses")
@@ -114,8 +116,8 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
 
     const assistantText = response.text || "I was unable to analyze this follow-up query. Please try rephrasing your question.";
 
-    if (diagnosisId) {
-      const docRef = adminDb
+    if (diagnosisId && db) {
+      const docRef = db
         .collection("users")
         .doc(userId)
         .collection("diagnoses")

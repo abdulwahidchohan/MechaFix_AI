@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import TopNav from "@/components/TopNav";
 import Dashboard from "@/components/Dashboard";
@@ -94,12 +94,20 @@ export default function Home() {
     };
   }, [imageFile]);
 
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [viewState]);
+
   return (
     <div className="flex h-screen overflow-hidden font-sans">
       <Sidebar currentView={viewState} onViewChange={setViewState} />
       <div className="flex-1 flex flex-col md:ml-[280px] w-full md:max-w-[calc(100%-280px)] h-screen overflow-hidden bg-background">
         <TopNav />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative">
           {viewState === "dashboard" && <Dashboard />}
           {viewState === "processing" && <ProcessingView imageFile={imageFile} />}
           {viewState === "report" && (

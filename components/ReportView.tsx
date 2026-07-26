@@ -112,7 +112,6 @@ export default function ReportView({
         body: JSON.stringify({
           diagnosisId,
           ...data,
-          currentRecord: record,
         }),
       });
 
@@ -666,7 +665,6 @@ export default function ReportView({
           diagnosisId={diagnosisId || "draft"}
           board={record.setup.board}
           component={record.setup.component}
-          currentRecord={record}
           existingReferences={record.generatedReferences || []}
           getAuthToken={getAuthToken}
           isDisabledByConfig={!referenceDiagramsEnabled}

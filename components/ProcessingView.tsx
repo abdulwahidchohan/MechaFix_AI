@@ -7,11 +7,9 @@ export default function ProcessingView({ imageFile }: { imageFile: File | null }
   const [imageUrl, setImageUrl] = useState<string>("");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
     if (imageFile) {
       const url = URL.createObjectURL(imageFile);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setImageUrl(url);
       return () => URL.revokeObjectURL(url);
     }

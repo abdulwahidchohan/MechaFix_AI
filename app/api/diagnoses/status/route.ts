@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
-
-export const runtime = "nodejs";
+import { verifyUserToken, adminDb } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,17 +25,15 @@ export async function POST(req: NextRequest) {
     const actionTaken = sanitize(rawActionTaken, 1000);
     const finalNote = sanitize(rawFinalNote, 1000);
 
-    const db = getAdminFirestore();
-    const docRef = db
-      ? db
-          .collection("users")
-          .doc(userId)
-          .collection("diagnoses")
-          .doc(diagnosisId)
-      : null;
+    const docRef = adminDb
+      .collection("users")
+      .doc(userId)
+      .collection("diagnoses")
+      .doc(diagnosisId);
 
-    if (!docRef) {
-      return NextResponse.json({ success: true, diagnosisId, status });
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      return NextResponse.json({ error: "Diagnosis not found" }, { status: 404 });
     }
 
     const updateData: any = {
@@ -55,7 +51,7 @@ export async function POST(req: NextRequest) {
       updateData.resolvedAt = new Date();
     }
 
-    await docRef.set(updateData, { merge: true });
+    await docRef.update(updateData);
 
     return NextResponse.json({ success: true, diagnosisId, status });
   } catch (error: any) {

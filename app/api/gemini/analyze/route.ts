@@ -5,14 +5,15 @@ import { buildAnalysisPrompt } from "@/lib/ai/prompts";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { EvidenceItem, normalizeDiagnosis } from "@/lib/types";
 
-export const runtime = "nodejs";
-export const maxDuration = 60;
-
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : "guest_user";
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const token = authHeader.split("Bearer ")[1];
     const userId = await verifyUserToken(token);
+
 
     const body = await req.json();
     const sanitize = (val: any, maxLen: number = 500) =>
@@ -164,45 +165,26 @@ export async function POST(req: NextRequest) {
       retrievedSources: retrievedSources || [],
     };
 
-    let docId = `session-${Date.now()}`;
-    let isPersistedInFirestore = false;
+    const db = getAdminFirestore();
+    const docRef = await db
+      .collection("users")
+      .doc(userId)
+      .collection("diagnoses")
+      .add(docData);
 
-    try {
-      const db = getAdminFirestore();
-      if (db) {
-        const docRef = await db
-          .collection("users")
-          .doc(userId)
-          .collection("diagnoses")
-          .add(docData);
-        docId = docRef.id;
-        isPersistedInFirestore = true;
-      }
-    } catch (fsError: any) {
-      console.warn(
-        "Firestore persistence notice (Cloud Firestore API may be propagating or pending enable):",
-        fsError?.message || fsError
-      );
-    }
-
-    const createdRecord = normalizeDiagnosis({ id: docId, ...docData });
+    const createdRecord = normalizeDiagnosis({ id: docRef.id, ...docData });
 
     return NextResponse.json({
       success: true,
-      id: docId,
-      data: rawAiOutput,
+      id: docRef.id,
+      data: resultData,
       record: createdRecord,
-      isPersistedInFirestore,
     });
-  } catch (err: any) {
-    console.error("Hardware Analysis Error:", err);
-    const status: number = err?.status ?? (String(err?.message || "").includes("429") ? 429 : 503);
-    const code: string = err?.code ?? (status === 429 ? "GEMINI_QUOTA_EXCEEDED" : "GEMINI_SERVICE_UNAVAILABLE");
-    const publicMsg: string =
-      err?.publicMessage || err?.message || "The AI diagnostic service is temporarily unavailable.";
+  } catch (error: any) {
+    console.error("Gemini API Error:", error);
     return NextResponse.json(
-      { error: publicMsg, code },
-      { status }
+      { error: error?.message || "Failed to run diagnosis." },
+      { status: 500 }
     );
   }
 }

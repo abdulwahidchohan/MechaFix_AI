@@ -3,15 +3,15 @@
 AI-powered, image-aware hardware troubleshooting for robotics, mechatronics, and electronics students.
 
 ## Live Application
-- **Stable Production URL**: [https://mecha-fix-ai.vercel.app](https://mecha-fix-ai.vercel.app)
+- **Stable Production URL**: [https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app](https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app)
 
 ## Public Repository
-- **GitHub Repository**: [https://github.com/abdulwahidchohan/MechaFix_AI](https://github.com/abdulwahidchohan/MechaFix_AI)
+- **GitHub Repository**: [https://github.com/abdulwahidchohan/mechafix-ai](https://github.com/abdulwahidchohan/mechafix-ai)
 
 ---
 
 ## Project Overview
-**MechaFix AI** is an intelligent, full-stack hardware troubleshooting assistant built for electronics engineers, makers, educators, and IoT developers. It turns complex hardware symptoms, component error codes, and breadboard photos into precise, actionable step-by-step repair protocols powered by **Gemini 3.6 Flash**, **Cloud Firestore** (`hekto-awm`), and a lightweight local **Grounding RAG Knowledge Retrieval Pipeline**.
+**MechaFix AI** is an intelligent, full-stack hardware troubleshooting assistant built for electronics engineers, makers, educators, and IoT developers. It turns complex hardware symptoms, component error codes, and breadboard photos into precise, actionable step-by-step repair protocols powered by **Gemini 2.5 Flash**, **Cloud Firestore**, and a lightweight local **Grounding RAG Knowledge Retrieval Pipeline**.
 
 > **Originality Statement**: MechaFix AI is not a general-purpose chatbot. It combines structured hardware context, multimodal circuit-image inspection, retrieval from a curated electronics knowledge base, manually logged measurements, and an evidence-aware troubleshooting workflow. The application separates visible observations, user-provided facts, unverified details, and possible explanations before recommending one safe diagnostic step at a time.
 
@@ -30,7 +30,7 @@ Makers, students, and engineers routinely waste hours diagnosing hardware failur
 ---
 
 ## Quick Demo Guide for Evaluators
-1. Open the [Live Application](https://mecha-fix-ai.vercel.app).
+1. Open the [Live Application](https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app).
 2. Click **Sign in with Google** to initialize your private diagnostic session.
 3. On the main dashboard, select **HC-SR04 Returns Zero**.
 4. Review the prefilled setup:
@@ -44,23 +44,41 @@ Makers, students, and engineers routinely waste hours diagnosing hardware failur
 8. Ask a follow-up question in the assistant composer:
    `I measured 4.8 V between VCC and GND. What should I check next?`
 9. Log the measurement using the **Log Measurement** drawer.
-10. Mark the diagnosis as **Resolved** with a root cause note, then open **Repair History** to view or export the report as Markdown or PDF.
+10. Mark the diagnosis as **Resolved** with a root cause note, then open **Repair History** to view or export the report as Markdown.
 
 ---
 
 ## Core Verified Features
-- **Gemini 3.6 Flash Hardware Analysis Engine**: Multimodal circuit diagnosis with automatic free-tier fallback (`gemini-3.5-flash-lite`).
-- **Automatic Diagnostic State Machine**: Dynamic state machine tracking active hypotheses, sequence numbers, and progress timeline.
-- **Hybrid Storage Sync**: Seamless local browser storage and real-time Cloud Firestore database synchronization (`users/{uid}/diagnoses`).
-- **Annotated Image Overlays**: Bounding box overlays (0 to 1000 scale) highlighting detected components and fault regions.
-- **Interactive Pinout Viewer**: Verified datasheets and pinout tables for Arduino Uno, ESP32 DevKit, Raspberry Pi Pico, HC-SR04, L298N, and DHT11.
-- **Direct Multi-Page PDF Export**: Client-side PDF report compilation (`jspdf`) with sanitized metadata and safety guidelines.
-- **RAG Knowledge Retrieval Pipeline**: Queries 12 curated hardware troubleshooting manuals using weighted TF-IDF keyword scoring.
-- **Hardware Safety Refusal System**: Emergency hazard warnings and high-voltage AC mains refusal rules.
+- **RAG Knowledge Retrieval Pipeline**: Queries 12 curated hardware troubleshooting manuals (`/knowledge/*.md`) using weighted TF-IDF keyword scoring to ground Gemini analysis and display qualitative relevance badges (`Strong Match`, `Relevant Match`, `Related Source`).
+- **Image & Text Diagnosis**: Multi-modal photo inspection (5 MB max limit; JPG, PNG, WebP) and text-based failure breakdown.
+- **Image Quality Recovery Path**: In cases of low clarity or obscured components, users can smoothly transition to "Continue with Text-Only Diagnosis" while preserving form inputs and excluding unverified visual observations.
+- **Hardware Quick-Start Presets**: Instant prefill for common cases:
+  - HC-SR04 returns zero
+  - Servo motor jittering
+  - Arduino resets on motor start
+  - I2C device not found
+- **Live Camera Capture & Mobile Fallback**: Built-in media capture with automatic object URL / MediaStream resource cleanup.
+- **Interactive AI Follow-Up Assistant**: Real-time contextual chat grounded in initial diagnostic findings and safety protocols.
+- **Diagnosis Lifecycle & Repair History**: Save, track, mark as resolved (with root cause recording), partially resolved, or reopen sessions synced real-time with Cloud Firestore.
+- **Report Actions**: One-click Markdown copy, `.md` report download, and clean print layout CSS.
+- **Hybrid Neumorphic UI & 5 Themes**: Cloud, Matcha, Peach Pop, Bubblegum, and Midnight themes with SSR hydration safety via `useSyncExternalStore`.
 
 ---
 
-## RAG Knowledge Base Manuals
+## AI-Powered Diagnosis & Safety Guardrails
+MechaFix AI enforces strict system instructions to guarantee safe, evidence-grounded responses:
+- **Smoke / Burning Smell / Thermal Hazard**: Instructs immediate power disconnection and halts further testing.
+- **Exposed AC Mains (110V - 240V)**: Refuses procedural repair instructions and directs user to a licensed electrician.
+- **No Invented Measurements**: Never claims to have measured voltage, current, or pin levels without explicit user input.
+- **No Hidden-Wire Assumptions**: Clearly tags unverified connections as unconfirmed visual observations.
+- **One Test at a Time**: Delivers single, safe, actionable troubleshooting steps.
+
+---
+
+## RAG Knowledge Pipeline Explanation
+MechaFix AI uses a lightweight local RAG pipeline. The user’s query is matched against chunks from 12 curated Markdown troubleshooting manuals. The most relevant excerpts are included as grounded context in the Gemini request, and only the retrieved sources are displayed in the report.
+
+Curated Knowledge Base:
 1. `arduino-power.md`: Power loops, voltage drops, and decoupling capacitors.
 2. `common-ground.md`: Shared reference requirements between sub-circuits.
 3. `hc-sr04.md`: Ultrasonic distance timing, Echo voltage divider, and pulseIn timeouts.
@@ -76,13 +94,46 @@ Makers, students, and engineers routinely waste hours diagnosing hardware failur
 
 ---
 
+## Application Screenshots
+- **Dashboard & Presets**: `public/og-image.png`
+- **Grounded AI Diagnosis**: Interactive view displaying structured sections, grounded RAG cards, and follow-up composer.
+
+---
+
 ## Technology Stack
-- **Frontend Framework**: Next.js 15.5.21 (App Router)
-- **UI Engine**: React 19 & React DOM 19
-- **Styling**: Tailwind CSS v4 with custom hybrid-neumorphic design tokens
-- **AI SDK**: `@google/genai` 2.13.0 (Server-side proxy via `/api/gemini/*`)
-- **Database & Auth**: Firebase JS SDK 12.16.0 & Firebase Admin 14.2.0 (Cloud Firestore project `hekto-awm`)
-- **Icons & PDF**: Lucide React & `jspdf`
+- **Frontend Framework**: Next.js 15.4.9 (App Router)
+- **UI Engine**: React 19.2.1 & React DOM 19.2.1
+- **Styling**: Tailwind CSS 4.1.11 with custom PostCSS plugin configuration
+- **AI SDK**: `@google/genai` 2.4.0 (Server-side proxy via `/api/gemini/analyze` and `/api/gemini/follow-up`)
+- **Database & Auth**: Firebase JS SDK 12.16.0 & Firebase Admin 14.2.0 (Cloud Firestore with real-time user-isolated rules)
+- **Icons**: Material Symbols Outlined & Lucide React 0.553.0
+
+---
+
+## Cloud Firestore Structure
+Diagnostic records are stored in Cloud Firestore under `/diagnoses/{diagnosisId}` with user isolation:
+
+```json
+{
+  "userId": "firebase_uid",
+  "board": "Arduino UNO",
+  "component": "HC-SR04 Ultrasonic Sensor",
+  "powerSource": "USB 5V",
+  "problemCategory": "Sensor Not Responding",
+  "status": "In Progress",
+  "analysis": {
+    "observedInImage": [...],
+    "providedByUser": [...],
+    "unverified": [...],
+    "possibleCauses": [...],
+    "currentSafeStep": "...",
+    "knowledgeSources": [...]
+  },
+  "measurements": [...],
+  "followUpMessages": [...],
+  "createdAt": "ISO-8601 Timestamp"
+}
+```
 
 ---
 
@@ -91,66 +142,86 @@ Makers, students, and engineers routinely waste hours diagnosing hardware failur
 Create `.env.local` using `.env.example`:
 
 ```env
-# Gemini AI Configuration
-GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+# Server-side Gemini API Key & Model Configuration
+GEMINI_API_KEY=""
 GEMINI_DIAGNOSIS_MODEL="gemini-3.6-flash"
 GEMINI_FAST_MODEL="gemini-3.5-flash-lite"
-GEMINI_IMAGE_MODEL="gemini-3.1-flash-image"
 GEMINI_EMBEDDING_MODEL="gemini-embedding-2"
+GEMINI_IMAGE_MODEL="gemini-3.1-flash-image"
 ENABLE_REFERENCE_DIAGRAMS="false"
 RAG_MODE="tfidf"
 
 # Application URL
-APP_URL="https://mecha-fix-ai.vercel.app"
-NEXT_PUBLIC_APP_URL="https://mecha-fix-ai.vercel.app"
+APP_URL="https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app"
+NEXT_PUBLIC_APP_URL="https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app"
 
-# Firebase Client Configuration (Project: hekto-awm)
-NEXT_PUBLIC_FIREBASE_API_KEY="YOUR_FIREBASE_API_KEY"
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="hekto-awm.firebaseapp.com"
-NEXT_PUBLIC_FIREBASE_PROJECT_ID="hekto-awm"
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="hekto-awm.firebasestorage.app"
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="920507935916"
-NEXT_PUBLIC_FIREBASE_APP_ID="1:920507935916:web:addb2991a3546f2ea70309"
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="G-8Q29K5XQ8H"
+# Public Firebase Configuration (Client)
+NEXT_PUBLIC_FIREBASE_API_KEY=""
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=""
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=""
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=""
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=""
+NEXT_PUBLIC_FIREBASE_APP_ID=""
 
 # Firebase Admin Credentials (Server)
-FIREBASE_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"hekto-awm", ...}'
+FIREBASE_SERVICE_ACCOUNT_KEY=""
 ```
 
 Run local development:
 
 ```bash
 # 1. Install dependencies
-npm install
+npm ci
 
-# 2. Run type checking
+# 2. Run static linter
+npm run lint
+
+# 3. Run type checking
 npm run typecheck
 
-# 3. Build production bundle
+# 4. Run automated test suite
+npm run test
+
+# 5. Build production bundle
 npm run build
 
-# 4. Start production server
+# 6. Start production server
 npm run start
 ```
 
 ---
 
 ## Testing & Verification Results
+- `npm run lint`: **Passed cleanly with 0 errors and 0 warnings**
 - `npm run typecheck`: **Passed cleanly with 0 TypeScript errors**
-- `npm run build`: **Passed, 14/14 static & dynamic pages generated successfully**
-- `10/10 Verification Suite`: **Passed all 10 feature assertion checks**
+- `npm run test`: **Passed, 18 of 18 automated unit and API sanity tests**
+- `npm run build`: **Passed, production build generated successfully**
 
 ---
 
 ## Privacy Policy
 MechaFix AI uses Google Sign-In to identify the user and protect saved diagnostic sessions.
 
-Diagnosis records are stored in Cloud Firestore under the authenticated user's UID (`users/{userId}/diagnoses/{diagnosisId}`).
+The application processes:
+- Hardware setup information entered by the user
+- Uploaded circuit images when image-assisted diagnosis is requested (processed in memory for analysis, not stored as raw blobs in Cloud Firestore)
+- AI-generated diagnostic reports
+- Follow-up troubleshooting messages
+- User-reported measurements
+- Diagnosis resolution details
+
+Diagnosis records are stored in Cloud Firestore under the authenticated user's UID.
 
 Third-party services used:
 - Firebase Authentication
-- Cloud Firestore (`hekto-awm`)
-- Google Gemini API (`gemini-3.6-flash`)
+- Cloud Firestore
+- Google Gemini API
+
+---
+
+## Limitations & Future Work
+- **Hardware Scope**: Currently optimized for low-voltage DC electronics (<30V), Arduino, ESP32, Raspberry Pi, and standard sensors/motor drivers.
+- **Future Improvements**: Multi-image comparative view, offline circuit diagram exporter, and expanded custom micro-controller pinout definitions.
 
 ---
 

@@ -179,8 +179,8 @@ export interface DiagnosisRecord {
 /**
  * Backward compatibility helper to convert version 1 DiagnosisRecord to version 2
  */
-export function normalizeDiagnosis(record: any): DiagnosisRecord {
-  const norm: any = { ...record };
+export function normalizeDiagnosis(record: DiagnosisRecord): DiagnosisRecord {
+  const norm: DiagnosisRecord = { ...record };
   norm.version = "2";
 
   if (!norm.status) {
@@ -189,7 +189,7 @@ export function normalizeDiagnosis(record: any): DiagnosisRecord {
 
   if (!norm.activeHypotheses || norm.activeHypotheses.length === 0) {
     const potentialCauses = norm.result?.potential_causes || [];
-    norm.activeHypotheses = potentialCauses.map((cause: string, idx: number) => ({
+    norm.activeHypotheses = potentialCauses.map((cause, idx) => ({
       id: `hyp-${idx + 1}`,
       title: cause,
       explanation: "Initial cause derived from baseline diagnostic scan.",

@@ -3,20 +3,17 @@ import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 import { runStepEvaluation } from "@/lib/ai/interactions";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { normalizeDiagnosis, StepResult } from "@/lib/types";
-import { GeminiServiceError } from "@/lib/ai/errors";
-
-export const runtime = "nodejs";
-export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized", code: "AUTH_TOKEN_INVALID" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const token = authHeader.split("Bearer ")[1];
     const userId = await verifyUserToken(token);
+
 
     const body = await req.json();
     const {
@@ -27,56 +24,30 @@ export async function POST(req: NextRequest) {
       observation,
       measurementValues,
       evidenceIds,
-      currentRecord: clientRecord,
     } = body;
 
     if (!diagnosisId || !stepId || !selectedOption) {
       return NextResponse.json(
-        { error: "Missing required fields: diagnosisId, stepId, and selectedOption.", code: "INVALID_STEP_RESULT" },
+        { error: "Missing required fields: diagnosisId, stepId, and selectedOption." },
         { status: 400 }
       );
     }
 
-    let record: any = null;
-    let docRef: any = null;
+    const db = getAdminFirestore();
+    const docRef = db.collection("users").doc(userId).collection("diagnoses").doc(diagnosisId);
+    const docSnap = await docRef.get();
 
-    try {
-      const db = getAdminFirestore();
-      if (db) {
-        docRef = db.collection("users").doc(userId).collection("diagnoses").doc(diagnosisId);
-        const docSnap = await docRef.get();
-        if (docSnap.exists) {
-          record = normalizeDiagnosis(docSnap.data() as any);
-        }
-      }
-    } catch (e: any) {
-      console.warn("Firestore step-result read notice:", e);
-      // If this is a FirebaseAdminError, escalate
-      if (e?.code === "FIREBASE_ADMIN_UNAVAILABLE" || e?.name === "FirebaseAdminError") {
-        return NextResponse.json(
-          { error: "The secure server connection is temporarily unavailable.", code: "FIREBASE_ADMIN_UNAVAILABLE" },
-          { status: 503 }
-        );
-      }
+    if (!docSnap.exists) {
+      return NextResponse.json({ error: "Diagnosis session not found." }, { status: 404 });
     }
 
-    if (!record && clientRecord) {
-      record = normalizeDiagnosis(clientRecord);
-    }
-
-    if (!record) {
-      return NextResponse.json(
-        { error: "Diagnosis not found.", code: "DIAGNOSIS_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
+    const record = normalizeDiagnosis(docSnap.data() as any);
     const lastStep = record.currentStep;
 
     if (!lastStep || lastStep.id !== stepId) {
       return NextResponse.json(
-        { error: "The submitted step is no longer the current diagnostic step.", code: "STALE_DIAGNOSTIC_STEP" },
-        { status: 409 }
+        { error: "Step ID mismatch or invalid step sequence." },
+        { status: 400 }
       );
     }
 
@@ -111,40 +82,9 @@ export async function POST(req: NextRequest) {
       ragContext: ragRes.contextText,
     });
 
-    // ── Gemini evaluation — preserve current step on any failure ─────────────
-    let aiEval: any;
-    try {
-      aiEval = await runStepEvaluation({ prompt: evaluationPrompt });
-    } catch (geminiErr: any) {
-      console.error("Gemini step evaluation failed:", geminiErr?.message || geminiErr);
+    const aiEval = await runStepEvaluation({ prompt: evaluationPrompt });
 
-      // Do NOT mark the step as completed — keep current state intact
-      const status: number = geminiErr?.status ?? 503;
-      const code: string = geminiErr?.code ?? "GEMINI_SERVICE_UNAVAILABLE";
-      const publicMsg: string =
-        geminiErr?.publicMessage ||
-        geminiErr?.message ||
-        "The AI step evaluation service is temporarily unavailable. Your result is preserved. Please try again.";
-
-      return NextResponse.json(
-        { error: publicMsg, code, retryable: geminiErr?.retryable ?? true },
-        { status }
-      );
-    }
-
-    // ── Validate Gemini response before mutating state ────────────────────────
-    if (!aiEval || typeof aiEval !== "object") {
-      return NextResponse.json(
-        {
-          error: "The AI returned an invalid response. Your result is preserved. Please try again.",
-          code: "AI_RESPONSE_INVALID",
-          retryable: true,
-        },
-        { status: 503 }
-      );
-    }
-
-    // ── Apply validated state transition ─────────────────────────────────────
+    // Update session data
     const updatedProgress = [
       ...(record.diagnosticProgress || []),
       {
@@ -175,25 +115,10 @@ export async function POST(req: NextRequest) {
       updateData.resolvedAt = new Date().toISOString();
     }
 
-    let finalRecord = normalizeDiagnosis({ ...record, ...updateData });
+    await docRef.update(updateData);
 
-    if (docRef) {
-      try {
-        await docRef.set(updateData, { merge: true });
-        const updatedDocSnap = await docRef.get();
-        if (updatedDocSnap.exists) {
-          finalRecord = normalizeDiagnosis(updatedDocSnap.data() as any);
-        }
-      } catch (e: any) {
-        console.warn("Firestore step-result update notice (evaluated in memory):", e);
-        if (e?.code === "FIREBASE_ADMIN_UNAVAILABLE" || e?.name === "FirebaseAdminError") {
-          return NextResponse.json(
-            { error: "The secure server connection is temporarily unavailable.", code: "FIREBASE_ADMIN_UNAVAILABLE" },
-            { status: 503 }
-          );
-        }
-      }
-    }
+    const updatedDocSnap = await docRef.get();
+    const finalRecord = normalizeDiagnosis(updatedDocSnap.data() as any);
 
     return NextResponse.json({
       success: true,
@@ -202,16 +127,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Step result processing error:", err);
-    // Map typed errors to correct HTTP codes
-    const status: number = err?.status ?? 500;
-    const code: string = err?.code ?? "INTERNAL_SERVER_ERROR";
-    const publicMsg: string =
-      err?.publicMessage ||
-      err?.message ||
-      "An unexpected error occurred while processing the step result.";
     return NextResponse.json(
-      { error: publicMsg, code },
-      { status }
+      { error: err?.message || "Failed to submit step result." },
+      { status: 500 }
     );
   }
 }

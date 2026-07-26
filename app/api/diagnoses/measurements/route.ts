@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
-
-export const runtime = "nodejs";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +8,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const token = authHeader.split("Bearer ")[1];
-    const userId = await verifyUserToken(token);
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const userId = decodedToken.uid;
 
     const { diagnosisId, measurement } = await req.json();
 
@@ -22,29 +21,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing measurement object" }, { status: 400 });
     }
 
-    const db = getAdminFirestore();
-    const docRef = db
-      ? db
-          .collection("users")
-          .doc(userId)
-          .collection("diagnoses")
-          .doc(diagnosisId)
-      : null;
+    const docRef = adminDb
+      .collection("users")
+      .doc(userId)
+      .collection("diagnoses")
+      .doc(diagnosisId);
 
-    if (!docRef) {
-      return NextResponse.json({ success: true, measurement, measurements: [measurement] });
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      return NextResponse.json({ error: "Diagnosis not found" }, { status: 404 });
     }
 
-    let currentMeasurements: any[] = [];
-    try {
-      const docSnap = await docRef.get();
-      if (docSnap.exists) {
-        currentMeasurements = docSnap.data()?.measurements || [];
-      }
-    } catch (e) {
-      console.warn("Firestore measurements read notice:", e);
-    }
-
+    const currentMeasurements: any[] = docSnap.data()?.measurements || [];
     const measId = typeof measurement.id === "string" && measurement.id.trim().length > 0
       ? measurement.id.trim()
       : `meas_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -75,10 +63,10 @@ export async function POST(req: NextRequest) {
 
     const updatedMeasurements = [...currentMeasurements, newMeasurement];
 
-    await docRef.set({
+    await docRef.update({
       measurements: updatedMeasurements,
       updatedAt: new Date(),
-    }, { merge: true });
+    });
 
     return NextResponse.json({ success: true, measurement: newMeasurement, measurements: updatedMeasurements });
   } catch (error: any) {

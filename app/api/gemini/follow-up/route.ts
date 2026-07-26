@@ -1,65 +1,51 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
+import { verifyUserToken, adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { retrieveContext } from "@/lib/rag";
 import { MODELS } from "@/lib/ai/models";
 
-export const runtime = "nodejs";
-export const maxDuration = 60;
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : "guest_user";
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const token = authHeader.split("Bearer ")[1];
     const userId = await verifyUserToken(token);
+
 
     const { diagnosisId, userMessage: rawUserMessage, conversationHistory, contextData } = await req.json();
 
     const userMessage = typeof rawUserMessage === "string" ? rawUserMessage.trim().slice(0, 2000) : "";
 
     if (!userMessage) {
-      return NextResponse.json({ error: "User message is required", code: "INVALID_REQUEST" }, { status: 400 });
-    }
-
-    // ── Configuration guard ───────────────────────────────────────────────────
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json(
-        {
-          error: "The AI assistant is not configured on this deployment. Your message has not been lost.",
-          code: "CONFIG_MISSING",
-          retryable: false,
-        },
-        { status: 503 }
-      );
+      return NextResponse.json({ error: "User message is required" }, { status: 400 });
     }
 
     let initialContext: any = contextData || {};
 
-    const db = getAdminFirestore();
-
-    if (diagnosisId && typeof diagnosisId === "string" && db) {
-      try {
-        const docRef = db
-          .collection("users")
-          .doc(userId)
-          .collection("diagnoses")
-          .doc(diagnosisId);
-        const docSnap = await docRef.get();
-        if (docSnap.exists) {
-          initialContext = docSnap.data() || {};
-        }
-      } catch (e) {
-        console.warn("Firestore follow-up lookup notice:", e);
+    if (diagnosisId && typeof diagnosisId === "string") {
+      const docRef = adminDb
+        .collection("users")
+        .doc(userId)
+        .collection("diagnoses")
+        .doc(diagnosisId);
+      const docSnap = await docRef.get();
+      if (!docSnap.exists) {
+        return NextResponse.json({ error: "Diagnosis record not found or access denied" }, { status: 404 });
       }
+      initialContext = docSnap.data() || {};
     }
 
     const board = initialContext.setup?.board || initialContext.board || "Generic PCB";
     const component = initialContext.setup?.component || initialContext.component || "N/A";
     const problemCategory = initialContext.setup?.problemCategory || initialContext.problemCategory || "N/A";
     const issueSummary = initialContext.result?.issue_summary || "N/A";
-    const steps = Array.isArray(initialContext.result?.troubleshooting_steps)
-      ? initialContext.result.troubleshooting_steps.join("; ")
+    const steps = Array.isArray(initialContext.result?.troubleshooting_steps) 
+      ? initialContext.result.troubleshooting_steps.join("; ") 
       : "N/A";
 
     const ragQuery = `${board} ${component} ${problemCategory} ${userMessage}`;
@@ -86,6 +72,7 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
 
     const contents: any[] = [];
     if (conversationHistory && Array.isArray(conversationHistory)) {
+      // Keep only the last 10 messages for context safety
       const recentHistory = conversationHistory.slice(-10);
       recentHistory.forEach((msg: any) => {
         if (msg && typeof msg.text === "string" && msg.text.trim()) {
@@ -104,61 +91,19 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
 
     const selectedModel = MODELS.diagnosisModel;
 
-    // ── Gemini AI Call ────────────────────────────────────────────────────────
-    let assistantText = "";
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: selectedModel,
-        contents,
-        config: {
-          systemInstruction,
-          temperature: 0.3,
-        },
-      });
-      assistantText = response.text || "";
-    } catch (aiErr: any) {
-      console.error("Follow-up Gemini call failed:", aiErr?.message || aiErr);
-      const msg = (aiErr?.message || "").toLowerCase();
-      const isQuota = msg.includes("429") || msg.includes("quota") || msg.includes("rate limit");
-      if (isQuota) {
-        return NextResponse.json(
-          {
-            error: "The AI service has reached its temporary usage limit. Please try again later.",
-            code: "GEMINI_QUOTA_EXCEEDED",
-            retryable: true,
-          },
-          {
-            status: 429,
-            headers: { "Retry-After": "60" },
-          }
-        );
-      }
-      return NextResponse.json(
-        {
-          error: "The AI assistant is temporarily unavailable. Your message is preserved. Please try again.",
-          code: "GEMINI_SERVICE_UNAVAILABLE",
-          retryable: true,
-        },
-        { status: 503 }
-      );
-    }
+    const response = await ai.models.generateContent({
+      model: selectedModel,
+      contents,
+      config: {
+        systemInstruction,
+        temperature: 0.3,
+      },
+    });
 
-    // ── Empty / invalid response guard ────────────────────────────────────────
-    if (!assistantText || !assistantText.trim()) {
-      return NextResponse.json(
-        {
-          error: "The AI assistant is temporarily unavailable. Your message is preserved. Please try again.",
-          code: "GEMINI_SERVICE_UNAVAILABLE",
-          retryable: true,
-        },
-        { status: 503 }
-      );
-    }
+    const assistantText = response.text || "I was unable to analyze this follow-up query. Please try rephrasing your question.";
 
-    // ── Persist to Firestore only on valid response ───────────────────────────
-    if (diagnosisId && db) {
-      const docRef = db
+    if (diagnosisId) {
+      const docRef = adminDb
         .collection("users")
         .doc(userId)
         .collection("diagnoses")
@@ -183,15 +128,10 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
       reply: assistantText,
     });
   } catch (error: any) {
-    console.error("Follow-Up Route Error:", error);
-    const status = error?.status || 500;
-    const code = error?.code || "INTERNAL_SERVER_ERROR";
+    console.error("Follow-Up AI Error:", error);
     return NextResponse.json(
-      {
-        error: error?.publicMessage || error?.message || "Failed to process follow-up question.",
-        code,
-      },
-      { status }
+      { error: error.message || "Failed to process follow-up question" },
+      { status: 500 }
     );
   }
 }

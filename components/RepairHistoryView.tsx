@@ -33,31 +33,7 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
   const [filter, setFilter] = useState<"all" | "resolved" | "partially_resolved">("all");
 
   useEffect(() => {
-    let localList: Diagnosis[] = [];
-    try {
-      const localStr = typeof window !== "undefined" ? localStorage.getItem("mechafix_local_diagnoses") : null;
-      if (localStr) {
-        const parsed = JSON.parse(localStr);
-        localList = (Array.isArray(parsed) ? parsed : [])
-          .map((item: any) => ({
-            id: item.id || `local-${Date.now()}`,
-            createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-            board: item.setup?.board || item.board,
-            component: item.setup?.component || item.component,
-            status: item.status || "in_progress",
-            context: item.setup?.board || item.context || "Hardware Fix",
-            resolution: item.resolution,
-            result: item.result || item,
-          }))
-          .filter((d: any) => d.status === "resolved" || d.status === "partially_resolved");
-      }
-    } catch (e) {}
-
-    if (!user) {
-      setHistory(localList);
-      setLoading(false);
-      return;
-    }
+    if (!user) return;
 
     const q = query(
       collection(db, "users", user.uid, "diagnoses"),
@@ -67,16 +43,16 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const fsDocs = snapshot.docs
+        const docs = snapshot.docs
           .map((doc) => {
             const data = doc.data();
             return {
               id: doc.id,
-              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
-              board: data.setup?.board || data.board,
-              component: data.setup?.component || data.component,
+              createdAt: data.createdAt?.toDate() || new Date(),
+              board: data.board,
+              component: data.component,
               status: data.status || "in_progress",
-              context: data.setup?.board || data.context || "",
+              context: data.context || "",
               resolution: data.resolution,
               result: data.result || {},
             } as Diagnosis;
@@ -87,19 +63,11 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
               d.status === "partially_resolved"
           );
 
-        const combinedMap = new Map<string, Diagnosis>();
-        localList.forEach((d) => combinedMap.set(d.id, d));
-        fsDocs.forEach((d) => combinedMap.set(d.id, d));
-
-        const combined = Array.from(combinedMap.values()).sort(
-          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-        );
-        setHistory(combined);
+        setHistory(docs);
         setLoading(false);
       },
       (error) => {
-        console.warn("Repair history fetch notice:", error);
-        setHistory(localList);
+        console.error("Error fetching repair history:", error);
         setLoading(false);
       }
     );
@@ -280,7 +248,7 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
                 {onViewReport && (
                   <button
                     type="button"
-                    onClick={() => onViewReport(item)}
+                    onClick={() => onViewReport(item.result)}
                     className="px-4 py-2 rounded-lg bg-primary text-surface font-sans font-semibold text-xs shadow-neu-raised hover:bg-primary-hover transition-all flex items-center gap-1.5"
                   >
                     View Report

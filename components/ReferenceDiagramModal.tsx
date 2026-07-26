@@ -10,7 +10,6 @@ interface ReferenceDiagramModalProps {
   diagnosisId: string;
   board: string;
   component: string;
-  currentRecord?: any;
   existingReferences?: GeneratedReference[];
   onReferenceGenerated?: (ref: GeneratedReference) => void;
   getAuthToken: () => Promise<string | null>;
@@ -23,7 +22,6 @@ export function ReferenceDiagramModal({
   diagnosisId,
   board,
   component,
-  currentRecord,
   existingReferences = [],
   onReferenceGenerated,
   getAuthToken,
@@ -46,7 +44,10 @@ export function ReferenceDiagramModal({
     setErrorMsg(null);
 
     try {
-      const token = (await getAuthToken()) || "guest_user";
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error("User authentication token not available.");
+      }
 
       const res = await fetch("/api/gemini/generate-reference-diagram", {
         method: "POST",
@@ -59,20 +60,10 @@ export function ReferenceDiagramModal({
           board,
           component,
           diagramTitle: `Reference Diagram: ${board} + ${component}`,
-          currentRecord,
         }),
       });
 
-      const rawText = await res.text();
-      let data: any = {};
-      try {
-        data = JSON.parse(rawText);
-      } catch (e) {
-        if (!res.ok) {
-          throw new Error(`Server error (HTTP ${res.status}: ${res.statusText || "Server error"}).`);
-        }
-      }
-
+      const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to generate reference diagram.");
       }

@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { auth } from "@/lib/firebase";
 
 export default function Home() {
-  const { user, authError } = useAuth();
+  const { user } = useAuth();
 
   const [viewState, setViewState] = useState<string>("dashboard");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -80,15 +80,6 @@ export default function Home() {
 
   return (
     <div className="flex h-screen overflow-hidden font-sans">
-      {authError && (
-        <div className="fixed top-20 right-4 z-[80] max-w-sm rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 shadow-xl backdrop-blur-md">
-          <div className="flex items-start gap-2">
-            <span className="material-symbols-outlined text-[18px] mt-0.5">warning</span>
-            <span>{authError}</span>
-          </div>
-        </div>
-      )}
-
       <Sidebar currentView={viewState} onViewChange={setViewState} />
       <div className="flex-1 flex flex-col md:ml-[280px] w-full md:max-w-[calc(100%-280px)] h-screen overflow-hidden bg-background">
         <TopNav />

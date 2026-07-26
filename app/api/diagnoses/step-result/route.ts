@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 import { runStepEvaluation } from "@/lib/ai/interactions";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { normalizeDiagnosis, StepResult } from "@/lib/types";
@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.split("Bearer ")[1];
-    const decodedToken = await getAdminAuth().verifyIdToken(token);
-    const userId = decodedToken.uid;
+    const userId = await verifyUserToken(token);
+
 
     const body = await req.json();
     const {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 import { runGeminiAnalysis, EvidenceInputPart } from "@/lib/ai/interactions";
 import { buildAnalysisPrompt } from "@/lib/ai/prompts";
 import { retrieveContext } from "@/lib/rag/retrieve";
@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const token = authHeader.split("Bearer ")[1];
-    const decodedToken = await getAdminAuth().verifyIdToken(token);
-    const userId = decodedToken.uid;
+    const userId = await verifyUserToken(token);
+
 
     const body = await req.json();
     const sanitize = (val: any, maxLen: number = 500) =>

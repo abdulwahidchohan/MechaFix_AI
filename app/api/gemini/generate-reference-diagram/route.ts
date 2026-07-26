@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 import { getGeminiClient } from "@/lib/ai/client";
 import { MODELS } from "@/lib/ai/models";
 import { GeneratedReference, normalizeDiagnosis } from "@/lib/types";
@@ -22,8 +22,8 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.split("Bearer ")[1];
-    const decodedToken = await getAdminAuth().verifyIdToken(token);
-    const userId = decodedToken.uid;
+    const userId = await verifyUserToken(token);
+
 
     const body = await req.json();
     const { diagnosisId, diagramTitle, board, component } = body;

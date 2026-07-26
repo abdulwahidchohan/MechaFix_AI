@@ -38,11 +38,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, diagnosisId, status });
     }
 
-    const docSnap = await docRef.get();
-    if (!docSnap.exists) {
-      return NextResponse.json({ error: "Diagnosis not found" }, { status: 404 });
-    }
-
     const updateData: any = {
       status: status || "resolved",
       updatedAt: new Date(),
@@ -58,7 +53,7 @@ export async function POST(req: NextRequest) {
       updateData.resolvedAt = new Date();
     }
 
-    await docRef.update(updateData);
+    await docRef.set(updateData, { merge: true });
 
     return NextResponse.json({ success: true, diagnosisId, status });
   } catch (error: any) {

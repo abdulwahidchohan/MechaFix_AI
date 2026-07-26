@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
 
     if (docRef) {
       try {
-        await docRef.update(updateData);
+        await docRef.set(updateData, { merge: true });
         const updatedDocSnap = await docRef.get();
         if (updatedDocSnap.exists) {
           finalRecord = normalizeDiagnosis(updatedDocSnap.data() as any);

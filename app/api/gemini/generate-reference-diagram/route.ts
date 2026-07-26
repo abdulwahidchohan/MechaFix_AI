@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Buffer } from "node:buffer";
 import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 import { getGeminiClient } from "@/lib/ai/client";
 import { MODELS } from "@/lib/ai/models";
@@ -50,31 +51,34 @@ export async function POST(req: NextRequest) {
 
     let generatedImageBase64 = "";
 
-    try {
-      const client = getGeminiClient();
-      const response = await client.models.generateContent({
-        model: MODELS.imageModel,
-        contents: {
-          parts: [{ text: promptText }],
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: "4:3",
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const client = getGeminiClient();
+        const response = await client.models.generateContent({
+          model: MODELS.imageModel,
+          contents: {
+            role: "user",
+            parts: [{ text: promptText }],
           },
-        },
-      });
+          config: {
+            imageConfig: {
+              aspectRatio: "4:3",
+            },
+          },
+        });
 
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData?.data) {
-            const mime = part.inlineData.mimeType || "image/png";
-            generatedImageBase64 = `data:${mime};base64,${part.inlineData.data}`;
-            break;
+        if (response.candidates?.[0]?.content?.parts) {
+          for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData?.data) {
+              const mime = part.inlineData.mimeType || "image/png";
+              generatedImageBase64 = `data:${mime};base64,${part.inlineData.data}`;
+              break;
+            }
           }
         }
+      } catch (imgErr: any) {
+        console.warn("Gemini Image model unavailable, generating SVG vector schematic fallback:", imgErr?.message || imgErr);
       }
-    } catch (imgErr: any) {
-      console.warn("Gemini Image model unavailable, generating SVG vector schematic fallback:", imgErr?.message || imgErr);
     }
 
     if (!generatedImageBase64) {
@@ -94,7 +98,7 @@ export async function POST(req: NextRequest) {
   <path d="M 360 400 Q 400 400 440 400" stroke="#3b82f6" stroke-width="5" fill="none"/>
   <text x="400" y="390" text-anchor="middle" font-size="12" font-weight="bold" fill="#2563eb">Signal / Data (Blue)</text>
   <rect x="40" y="520" width="720" height="40" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
-  <text x="400" y="545" text-anchor="middle" font-size="12" font-weight="bold" fill="#b45309">AI-Generated Reference Diagram. Verify pinouts with official manufacturer datasheets before applying power.</text>
+  <text x="400" y="545" text-anchor="middle" font-size="12" font-weight="bold" fill="#b45309">Educational Reference Diagram. Verify pinouts with official manufacturer datasheets before applying power.</text>
 </svg>`;
       generatedImageBase64 = `data:image/svg+xml;base64,${Buffer.from(fallbackSvg).toString("base64")}`;
     }
@@ -102,7 +106,7 @@ export async function POST(req: NextRequest) {
     const newReference: GeneratedReference = {
       id: `ref-${Date.now()}`,
       title: diagramTitle || `Educational Reference: ${boardName} to ${compName}`,
-      description: `AI-generated illustrative reference schematic for ${compName} connected to ${boardName}.`,
+      description: `Illustrative reference schematic for ${compName} connected to ${boardName}.`,
       imageUrl: generatedImageBase64,
       generatedAt: new Date().toISOString(),
       promptUsed: promptText,
@@ -113,12 +117,12 @@ export async function POST(req: NextRequest) {
 
     if (docRef) {
       try {
-        await docRef.update({
+        await docRef.set({
           generatedReferences: updatedReferences,
           updatedAt: new Date().toISOString(),
-        });
+        }, { merge: true });
       } catch (e) {
-        console.warn("Firestore reference diagram update notice:", e);
+        console.warn("Firestore reference diagram write notice:", e);
       }
     }
 
@@ -126,11 +130,12 @@ export async function POST(req: NextRequest) {
       success: true,
       reference: newReference,
     });
-  } catch (err: any) {
-    console.error("Reference diagram generation error:", err);
+  } catch (error: any) {
+    console.error("Reference diagram generation error:", error);
     return NextResponse.json(
-      { error: err?.message || "Failed to generate reference diagram." },
+      { error: error?.message || "Failed to generate reference diagram." },
       { status: 500 }
     );
   }
 }
+

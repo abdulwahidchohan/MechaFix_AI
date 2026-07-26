@@ -33,12 +33,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, measurement, measurements: [measurement] });
     }
 
-    const docSnap = await docRef.get();
-    if (!docSnap.exists) {
-      return NextResponse.json({ error: "Diagnosis not found" }, { status: 404 });
+    let currentMeasurements: any[] = [];
+    try {
+      const docSnap = await docRef.get();
+      if (docSnap.exists) {
+        currentMeasurements = docSnap.data()?.measurements || [];
+      }
+    } catch (e) {
+      console.warn("Firestore measurements read notice:", e);
     }
 
-    const currentMeasurements: any[] = docSnap.data()?.measurements || [];
     const measId = typeof measurement.id === "string" && measurement.id.trim().length > 0
       ? measurement.id.trim()
       : `meas_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -69,10 +73,10 @@ export async function POST(req: NextRequest) {
 
     const updatedMeasurements = [...currentMeasurements, newMeasurement];
 
-    await docRef.update({
+    await docRef.set({
       measurements: updatedMeasurements,
       updatedAt: new Date(),
-    });
+    }, { merge: true });
 
     return NextResponse.json({ success: true, measurement: newMeasurement, measurements: updatedMeasurements });
   } catch (error: any) {

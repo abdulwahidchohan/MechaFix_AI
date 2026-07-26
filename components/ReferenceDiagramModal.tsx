@@ -46,10 +46,7 @@ export function ReferenceDiagramModal({
     setErrorMsg(null);
 
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error("User authentication token not available.");
-      }
+      const token = (await getAuthToken()) || "guest_user";
 
       const res = await fetch("/api/gemini/generate-reference-diagram", {
         method: "POST",
@@ -67,11 +64,13 @@ export function ReferenceDiagramModal({
       });
 
       const rawText = await res.text();
-      let data: any;
+      let data: any = {};
       try {
         data = JSON.parse(rawText);
       } catch (e) {
-        throw new Error(!res.ok ? `Server error (HTTP ${res.status}: ${res.statusText || "Server error"}).` : "Failed to parse diagram response.");
+        if (!res.ok) {
+          throw new Error(`Server error (HTTP ${res.status}: ${res.statusText || "Server error"}).`);
+        }
       }
 
       if (!res.ok || !data.success) {

@@ -5,10 +5,19 @@ import { FieldValue } from "firebase-admin/firestore";
 import { retrieveContext } from "@/lib/rag";
 import { MODELS } from "@/lib/ai/models";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY environment variable is not configured on Vercel. Please add GEMINI_API_KEY in Vercel Settings -> Environment Variables." },
+        { status: 500 }
+      );
+    }
+
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

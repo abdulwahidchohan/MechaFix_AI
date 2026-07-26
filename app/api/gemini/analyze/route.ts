@@ -5,8 +5,17 @@ import { buildAnalysisPrompt } from "@/lib/ai/prompts";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { EvidenceItem, normalizeDiagnosis } from "@/lib/types";
 
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY environment variable is not configured on Vercel. Please add GEMINI_API_KEY in Vercel Settings -> Environment Variables." },
+        { status: 500 }
+      );
+    }
+
     const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

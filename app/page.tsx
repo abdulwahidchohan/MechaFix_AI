@@ -53,7 +53,14 @@ export default function Home() {
           }),
         });
 
-        const result = await response.json();
+        const rawText = await response.text();
+        let result: any;
+        try {
+          result = JSON.parse(rawText);
+        } catch (e) {
+          throw new Error(!response.ok ? `Server Error (HTTP ${response.status}: ${response.statusText || "Server error"}). Please ensure Vercel Environment Variables are set.` : "Invalid response format from server.");
+        }
+
         if (result.success) {
           const rec = result.record || { data: result.data };
           setAnalysisResult(rec);

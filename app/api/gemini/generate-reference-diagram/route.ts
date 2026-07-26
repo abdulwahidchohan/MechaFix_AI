@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
     const token = authHeader.split("Bearer ")[1];
     const userId = await verifyUserToken(token);
 
-
     const body = await req.json();
     const { diagnosisId, diagramTitle, board, component, currentRecord: clientRecord } = body;
 
@@ -47,10 +46,10 @@ export async function POST(req: NextRequest) {
 
     const promptText = `A clear, high-resolution technical educational wiring diagram showing how to wire a ${compName} to an ${boardName} board. Clean vector schematics style with color-coded jumper wires (Red for VCC/5V, Black for GND, Blue/Yellow for Signal data lines), labeled pin headers, breadboard layout, and high contrast against a neutral off-white background. Professional electronics engineering illustration.`;
 
-    const client = getGeminiClient();
     let generatedImageBase64 = "";
 
     try {
+      const client = getGeminiClient();
       const response = await client.models.generateContent({
         model: MODELS.imageModel,
         contents: {
@@ -73,7 +72,10 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch (imgErr: any) {
-      console.warn("Gemini Image generation failed, creating SVG fallback reference graphic:", imgErr?.message || imgErr);
+      console.warn("Gemini Image model unavailable, generating SVG vector schematic fallback:", imgErr?.message || imgErr);
+    }
+
+    if (!generatedImageBase64) {
       const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" style="background:#f8fafc;font-family:sans-serif">
   <rect x="20" y="20" width="760" height="560" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
   <text x="400" y="60" text-anchor="middle" font-size="22" font-weight="bold" fill="#0f172a">Reference Wiring Diagram: ${boardName} + ${compName}</text>
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
       disclaimer: "AI-generated reference diagram for educational visualization only. Always verify pin numbers, logic voltages, and current limits with official manufacturer datasheets before connecting power.",
     };
 
-    const updatedReferences = [...(record.generatedReferences || []), newReference];
+    const updatedReferences = [...(record?.generatedReferences || []), newReference];
 
     if (docRef) {
       try {

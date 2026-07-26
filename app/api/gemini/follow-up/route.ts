@@ -14,13 +14,24 @@ export async function POST(req: NextRequest) {
     const token = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : "guest_user";
     const userId = await verifyUserToken(token);
 
-
     const { diagnosisId, userMessage: rawUserMessage, conversationHistory, contextData } = await req.json();
 
     const userMessage = typeof rawUserMessage === "string" ? rawUserMessage.trim().slice(0, 2000) : "";
 
     if (!userMessage) {
-      return NextResponse.json({ error: "User message is required" }, { status: 400 });
+      return NextResponse.json({ error: "User message is required", code: "INVALID_REQUEST" }, { status: 400 });
+    }
+
+    // ── Configuration guard ───────────────────────────────────────────────────
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json(
+        {
+          error: "The AI assistant is not configured on this deployment. Your message has not been lost.",
+          code: "CONFIG_MISSING",
+          retryable: false,
+        },
+        { status: 503 }
+      );
     }
 
     let initialContext: any = contextData || {};
@@ -47,8 +58,8 @@ export async function POST(req: NextRequest) {
     const component = initialContext.setup?.component || initialContext.component || "N/A";
     const problemCategory = initialContext.setup?.problemCategory || initialContext.problemCategory || "N/A";
     const issueSummary = initialContext.result?.issue_summary || "N/A";
-    const steps = Array.isArray(initialContext.result?.troubleshooting_steps) 
-      ? initialContext.result.troubleshooting_steps.join("; ") 
+    const steps = Array.isArray(initialContext.result?.troubleshooting_steps)
+      ? initialContext.result.troubleshooting_steps.join("; ")
       : "N/A";
 
     const ragQuery = `${board} ${component} ${problemCategory} ${userMessage}`;
@@ -75,7 +86,6 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
 
     const contents: any[] = [];
     if (conversationHistory && Array.isArray(conversationHistory)) {
-      // Keep only the last 10 messages for context safety
       const recentHistory = conversationHistory.slice(-10);
       recentHistory.forEach((msg: any) => {
         if (msg && typeof msg.text === "string" && msg.text.trim()) {
@@ -94,28 +104,59 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
 
     const selectedModel = MODELS.diagnosisModel;
 
+    // ── Gemini AI Call ────────────────────────────────────────────────────────
     let assistantText = "";
     try {
-      if (process.env.GEMINI_API_KEY) {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const response = await ai.models.generateContent({
-          model: selectedModel,
-          contents,
-          config: {
-            systemInstruction,
-            temperature: 0.3,
-          },
-        });
-        assistantText = response.text || "";
-      }
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: selectedModel,
+        contents,
+        config: {
+          systemInstruction,
+          temperature: 0.3,
+        },
+      });
+      assistantText = response.text || "";
     } catch (aiErr: any) {
-      console.warn("Follow-up AI call fallback:", aiErr?.message || aiErr);
+      console.error("Follow-up Gemini call failed:", aiErr?.message || aiErr);
+      const msg = (aiErr?.message || "").toLowerCase();
+      const isQuota = msg.includes("429") || msg.includes("quota") || msg.includes("rate limit");
+      if (isQuota) {
+        return NextResponse.json(
+          {
+            error: "The AI service has reached its temporary usage limit. Please try again later.",
+            code: "GEMINI_QUOTA_EXCEEDED",
+            retryable: true,
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": "60" },
+          }
+        );
+      }
+      return NextResponse.json(
+        {
+          error: "The AI assistant is temporarily unavailable. Your message is preserved. Please try again.",
+          code: "GEMINI_SERVICE_UNAVAILABLE",
+          retryable: true,
+        },
+        { status: 503 }
+      );
     }
 
-    if (!assistantText) {
-      assistantText = `Based on your hardware setup (${board} + ${component}): Ensure common GND is connected between your microcontroller and module, check that power rail voltage matches component requirements (3.3V vs 5V), and verify all jumper wires are firmly seated in header pins.`;
+    // ── Empty / invalid response guard ────────────────────────────────────────
+    if (!assistantText || !assistantText.trim()) {
+      return NextResponse.json(
+        {
+          error: "The AI assistant is temporarily unavailable. Your message is preserved. Please try again.",
+          code: "GEMINI_SERVICE_UNAVAILABLE",
+          retryable: true,
+        },
+        { status: 503 }
+      );
     }
 
+    // ── Persist to Firestore only on valid response ───────────────────────────
     if (diagnosisId && db) {
       const docRef = db
         .collection("users")
@@ -142,10 +183,15 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
       reply: assistantText,
     });
   } catch (error: any) {
-    console.error("Follow-Up AI Error:", error);
+    console.error("Follow-Up Route Error:", error);
+    const status = error?.status || 500;
+    const code = error?.code || "INTERNAL_SERVER_ERROR";
     return NextResponse.json(
-      { error: error.message || "Failed to process follow-up question" },
-      { status: 500 }
+      {
+        error: error?.publicMessage || error?.message || "Failed to process follow-up question.",
+        code,
+      },
+      { status }
     );
   }
 }

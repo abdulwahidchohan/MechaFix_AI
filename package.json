@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node -e 'console.log(\"All automated unit and API sanity tests passed successfully.\")'",
+    "test": "node scripts/test-error-handling.js",
     "clean": "next clean"
   },
   "dependencies": {

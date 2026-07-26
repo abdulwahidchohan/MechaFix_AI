@@ -11,6 +11,12 @@ export interface EvidenceInputPart {
   };
 }
 
+/** Detects quota / rate-limit errors from Gemini API error messages */
+function isQuotaError(message: string): boolean {
+  const lower = (message || "").toLowerCase();
+  return lower.includes("429") || lower.includes("quota") || lower.includes("rate limit") || lower.includes("resource_exhausted");
+}
+
 export async function runGeminiAnalysis(params: {
   prompt: string;
   images?: EvidenceInputPart[];
@@ -39,9 +45,11 @@ export async function runGeminiAnalysis(params: {
     });
 
     const rawText = response.text || "";
-    const parsed = JSON.parse(rawText);
-    return parsed;
+    return JSON.parse(rawText);
   } catch (err: any) {
+    // If this is already a typed error (e.g. CONFIG_MISSING from client.ts), re-throw immediately
+    if (err?.name === "GeminiServiceError") throw err;
+
     console.warn(`Primary model ${primaryModel} analysis failed, trying fallback:`, err?.message || err);
     try {
       if (!client) client = getGeminiClient();
@@ -57,19 +65,25 @@ export async function runGeminiAnalysis(params: {
       });
       return JSON.parse(response.text || "{}");
     } catch (fallbackErr: any) {
-      console.error("Gemini API call failed:", fallbackErr?.message || err?.message);
-      const isQuota = (fallbackErr?.message || err?.message || "").includes("429") || (fallbackErr?.message || err?.message || "").includes("quota");
-      if (isQuota) {
+      if (fallbackErr?.name === "GeminiServiceError") throw fallbackErr;
+
+      const combinedMessage = fallbackErr?.message || err?.message || "";
+      console.error("Gemini analysis failed on both primary and fallback models:", combinedMessage);
+
+      if (isQuotaError(combinedMessage)) {
         throw new GeminiServiceError(
           "The AI diagnostic service quota has been reached. Please try again in a few moments.",
           "GEMINI_QUOTA_EXCEEDED",
-          429
+          429,
+          true
         );
       }
       throw new GeminiServiceError(
-        "The AI diagnostic service is temporarily unavailable. Please verify your GEMINI_API_KEY configuration and try again.",
-        "SERVICE_UNAVAILABLE",
-        503
+        "The AI diagnostic service is temporarily unavailable.",
+        "GEMINI_SERVICE_UNAVAILABLE",
+        503,
+        true,
+        combinedMessage
       );
     }
   }
@@ -96,6 +110,8 @@ export async function runStepEvaluation(params: {
 
     return JSON.parse(response.text || "{}");
   } catch (err: any) {
+    if (err?.name === "GeminiServiceError") throw err;
+
     console.warn(`Step evaluation with ${primaryModel} failed, trying fallback:`, err?.message || err);
     try {
       if (!client) client = getGeminiClient();
@@ -111,19 +127,25 @@ export async function runStepEvaluation(params: {
       });
       return JSON.parse(response.text || "{}");
     } catch (fallbackErr: any) {
-      console.error("Gemini step evaluation failed:", fallbackErr?.message || err?.message);
-      const isQuota = (fallbackErr?.message || err?.message || "").includes("429") || (fallbackErr?.message || err?.message || "").includes("quota");
-      if (isQuota) {
+      if (fallbackErr?.name === "GeminiServiceError") throw fallbackErr;
+
+      const combinedMessage = fallbackErr?.message || err?.message || "";
+      console.error("Gemini step evaluation failed on both primary and fallback models:", combinedMessage);
+
+      if (isQuotaError(combinedMessage)) {
         throw new GeminiServiceError(
           "The AI step evaluation service quota has been reached. Please try again in a few moments.",
           "GEMINI_QUOTA_EXCEEDED",
-          429
+          429,
+          true
         );
       }
       throw new GeminiServiceError(
         "The AI step evaluation service is temporarily unavailable. Please try again.",
-        "SERVICE_UNAVAILABLE",
-        503
+        "GEMINI_SERVICE_UNAVAILABLE",
+        503,
+        true,
+        combinedMessage
       );
     }
   }

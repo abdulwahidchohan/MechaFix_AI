@@ -14,7 +14,6 @@ export async function POST(req: NextRequest) {
     const token = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : "guest_user";
     const userId = await verifyUserToken(token);
 
-
     const body = await req.json();
     const sanitize = (val: any, maxLen: number = 500) =>
       typeof val === "string" ? val.trim().slice(0, maxLen) : "";
@@ -197,13 +196,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Hardware Analysis Error:", err);
-    const status = err?.status || (err?.message?.includes("429") ? 429 : 503);
-    const code = err?.code || (status === 429 ? "GEMINI_QUOTA_EXCEEDED" : "SERVICE_UNAVAILABLE");
+    const status: number = err?.status ?? (String(err?.message || "").includes("429") ? 429 : 503);
+    const code: string = err?.code ?? (status === 429 ? "GEMINI_QUOTA_EXCEEDED" : "GEMINI_SERVICE_UNAVAILABLE");
+    const publicMsg: string =
+      err?.publicMessage || err?.message || "The AI diagnostic service is temporarily unavailable.";
     return NextResponse.json(
-      {
-        error: err?.message || "The AI diagnostic service is temporarily unavailable.",
-        code,
-      },
+      { error: publicMsg, code },
       { status }
     );
   }

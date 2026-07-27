@@ -103,6 +103,8 @@ export default function ReportView({
       const token = await getAuthToken();
       if (!token) throw new Error("Authentication token required.");
 
+      const clientRequestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
       const res = await fetch("/api/diagnoses/step-result", {
         method: "POST",
         headers: {
@@ -111,12 +113,24 @@ export default function ReportView({
         },
         body: JSON.stringify({
           diagnosisId,
+          clientRequestId,
           ...data,
         }),
       });
 
       const resData = await res.json();
-      if (!res.ok || !resData.success) {
+      if (!res.ok) {
+        if (res.status === 409) {
+          console.warn("Step submission 409 (Stale or Duplicate Step). Refreshing state...");
+          setAnnouncement("Step state updated. Syncing latest step...");
+          // Gracefully reload latest diagnosis document
+          if (resData.diagnosis) {
+            const updatedRec = normalizeDiagnosis(resData.diagnosis);
+            setRecord(updatedRec);
+            setStatus(updatedRec.status);
+          }
+          return;
+        }
         throw new Error(resData.error || "Failed to submit test result.");
       }
 

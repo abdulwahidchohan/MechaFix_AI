@@ -22,7 +22,7 @@ function ensureFirebaseAdminApp(): App {
   const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!rawServiceAccount || !rawServiceAccount.trim()) {
     throw new FirebaseAdminError(
-      "FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not configured.",
+      "FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not configured in Vercel.",
       "CONFIG_MISSING",
       503
     );
@@ -30,11 +30,27 @@ function ensureFirebaseAdminApp(): App {
 
   let serviceAccount: any;
   try {
-    const trimmed = rawServiceAccount.trim();
+    let trimmed = rawServiceAccount.trim();
+
+    // Strip surrounding quotes if pasted into Vercel UI with quotes
+    if ((trimmed.startsWith("'") && trimmed.endsWith("'")) || (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+      trimmed = trimmed.slice(1, -1).trim();
+    }
+
+    // Support Base64 encoded service account string
+    if (!trimmed.startsWith("{")) {
+      try {
+        const decoded = Buffer.from(trimmed, "base64").toString("utf-8");
+        if (decoded.includes("service_account")) {
+          trimmed = decoded.trim();
+        }
+      } catch (b64Err) {}
+    }
+
     serviceAccount = typeof trimmed === "string" ? JSON.parse(trimmed) : trimmed;
-  } catch (err) {
+  } catch (err: any) {
     throw new FirebaseAdminError(
-      "FIREBASE_SERVICE_ACCOUNT_KEY contains malformed JSON.",
+      `FIREBASE_SERVICE_ACCOUNT_KEY contains malformed JSON: ${err?.message || err}`,
       "FIREBASE_ADMIN_UNAVAILABLE",
       503
     );

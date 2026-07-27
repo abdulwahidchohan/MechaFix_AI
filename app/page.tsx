@@ -18,6 +18,7 @@ import SafetyProtocolsView from "@/components/SafetyProtocolsView";
 import DocumentationView from "@/components/DocumentationView";
 import { useAuth } from "@/lib/AuthContext";
 import { auth } from "@/lib/firebase";
+import { parseResponseJson } from "@/lib/utils";
 
 export default function Home() {
   const { user } = useAuth();
@@ -57,7 +58,7 @@ export default function Home() {
           }),
         });
 
-        const result = await response.json();
+        const result = await parseResponseJson(response);
         if (result.success) {
           setAnalysisResult(result.record || { data: result.data });
           setViewState("report");

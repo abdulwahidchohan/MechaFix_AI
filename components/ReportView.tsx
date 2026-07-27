@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { auth } from "@/lib/firebase";
+import { parseResponseJson } from "@/lib/utils";
 import { DiagnosisRecord, Measurement, normalizeDiagnosis } from "@/lib/types";
 import ResolveDiagnosisModal from "@/components/ResolveDiagnosisModal";
 import ImageQualityModal from "@/components/ImageQualityModal";
@@ -50,7 +51,7 @@ export default function ReportView({
 
   useEffect(() => {
     fetch("/api/capabilities")
-      .then((res) => res.json())
+      .then((res) => parseResponseJson(res))
       .then((data) => {
         if (typeof data.referenceDiagrams === "boolean") {
           setReferenceDiagramsEnabled(data.referenceDiagrams);
@@ -118,7 +119,7 @@ export default function ReportView({
         }),
       });
 
-      const resData = await res.json();
+      const resData = await parseResponseJson(res);
       if (!res.ok) {
         if (res.status === 409) {
           console.warn("Step submission 409 (Stale or Duplicate Step). Refreshing state...");
@@ -176,7 +177,7 @@ export default function ReportView({
         }),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (data.success) {
         setChatMessages((prev) => [
           ...prev,

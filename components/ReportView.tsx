@@ -394,7 +394,7 @@ export default function ReportView({
       {/* Annotated Image Viewer (If Evidence Present) */}
       {primaryEvidence && primaryEvidence.data && (
         <AnnotatedImageViewer
-          imageDataUrl={`data:${primaryEvidence.mimeType};base64,${primaryEvidence.data}`}
+          imageUrl={`data:${primaryEvidence.mimeType};base64,${primaryEvidence.data}`}
           annotations={primaryEvidence.annotations || result.annotations || []}
           title={`Evidence Image Overlay (${record.setup.board})`}
         />
@@ -410,31 +410,31 @@ export default function ReportView({
           />
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-md space-y-4">
-          <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className="bg-surface border border-border rounded-2xl p-6 shadow-neu-raised space-y-4">
+          <div className="flex items-center gap-3 border-b border-border pb-3">
             {status === "resolved" ? (
-              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-500/20">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
             ) : status === "safety_stop" ? (
-              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 text-red-600 flex items-center justify-center shrink-0 border border-red-500/20">
                 <ShieldAlert className="w-6 h-6" />
               </div>
             ) : (
-              <div className="w-10 h-10 rounded-full bg-sky-100 dark:bg-sky-950/80 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-primary-container text-primary flex items-center justify-center shrink-0 border border-primary/20">
                 <Activity className="w-6 h-6" />
               </div>
             )}
 
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+              <h3 className="text-base font-bold text-text">
                 {status === "resolved"
                   ? "Diagnostic Session Resolved"
                   : status === "safety_stop"
                   ? "Safety Precaution Stop"
                   : "Diagnostic Test Sequence Completed"}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-text-muted">
                 {status === "resolved"
                   ? "Root cause confirmed and resolution details saved."
                   : status === "safety_stop"

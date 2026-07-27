@@ -73,33 +73,33 @@ export function CurrentDiagnosticStepCard({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 border-2 border-sky-500/40 dark:border-sky-500/50 rounded-2xl p-6 shadow-lg shadow-sky-500/5 flex flex-col gap-5">
+    <div className="bg-surface border-2 border-primary/40 rounded-2xl p-6 shadow-neu-raised flex flex-col gap-5">
       {/* Step Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <span className="w-8 h-8 rounded-full bg-sky-500 text-white font-bold text-sm flex items-center justify-center shrink-0">
+          <span className="w-8 h-8 rounded-full bg-primary text-surface font-bold text-sm flex items-center justify-center shrink-0 shadow-sm">
             {step.sequence}
           </span>
           <div>
-            <div className="text-xs uppercase tracking-wider font-semibold text-sky-600 dark:text-sky-400">
+            <div className="text-xs uppercase tracking-wider font-semibold text-primary">
               Active Diagnostic Step
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            <h3 className="text-lg font-bold text-text">
               {step.title}
             </h3>
           </div>
         </div>
 
         {/* Safety Badge */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 self-start sm:self-auto">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/20 self-start sm:self-auto">
           {step.requiresPowerDisconnected ? (
             <>
-              <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
               <span>DISCONNECT POWER FIRST</span>
             </>
           ) : (
             <>
-              <Zap className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+              <Zap className="w-4 h-4 text-primary shrink-0" />
               <span>Power Measurement Test</span>
             </>
           )}
@@ -108,24 +108,24 @@ export function CurrentDiagnosticStepCard({
 
       {/* Instruction & Expected Result */}
       <div className="space-y-3">
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-          <p className="text-sm text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
+        <div className="p-4 bg-surface-sunken rounded-xl border border-border">
+          <p className="text-sm text-text font-medium leading-relaxed">
             {step.instruction}
           </p>
-          <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <span className="font-semibold text-slate-700 dark:text-slate-300">Reason:</span> {step.reason}
+          <div className="mt-2 text-xs text-text-muted flex items-center gap-1.5">
+            <span className="font-semibold text-text">Reason:</span> {step.reason}
           </div>
         </div>
 
         {step.safetyNote && (
-          <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-300 text-xs rounded-lg border border-red-200 dark:border-red-900/60">
+          <div className="flex items-start gap-2 p-3 bg-red-500/10 text-red-600 text-xs rounded-lg border border-red-500/20">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             <span>{step.safetyNote}</span>
           </div>
         )}
 
-        <div className="text-xs text-slate-600 dark:text-slate-400">
-          <span className="font-semibold text-slate-800 dark:text-slate-200">Expected Outcome:</span>{" "}
+        <div className="text-xs text-text-muted">
+          <span className="font-semibold text-text">Expected Outcome:</span>{" "}
           {step.expectedResult}
         </div>
       </div>
@@ -133,7 +133,7 @@ export function CurrentDiagnosticStepCard({
       {/* Test Result Form */}
       <form onSubmit={handleSubmit} className="space-y-4 pt-2">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+          <label className="block text-xs font-semibold text-text uppercase tracking-wider mb-2">
             Select Observed Test Result
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -142,14 +142,14 @@ export function CurrentDiagnosticStepCard({
                 key={opt}
                 type="button"
                 onClick={() => setSelectedOption(opt)}
-                className={`p-3 text-xs font-medium rounded-xl border text-left transition-all flex items-center justify-between ${
+                className={`p-3 text-xs font-medium rounded-xl border text-left transition-all flex items-center justify-between min-h-[44px] cursor-pointer ${
                   selectedOption === opt
-                    ? "border-sky-500 bg-sky-50 dark:bg-sky-950/50 text-sky-900 dark:text-sky-200 ring-2 ring-sky-500/20"
-                    : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700"
+                    ? "border-primary bg-primary-container text-primary font-semibold shadow-neu-pressed"
+                    : "border-border bg-surface-sunken text-text hover:bg-surface-dim"
                 }`}
               >
                 <span>{opt}</span>
-                {selectedOption === opt && <CheckCircle2 className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />}
+                {selectedOption === opt && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
               </button>
             ))}
           </div>
@@ -157,9 +157,9 @@ export function CurrentDiagnosticStepCard({
 
         {/* Optional Multimeter Measurement Input */}
         {step.requiresMeasurement && (
-          <div className="p-3.5 bg-sky-50/50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/50 rounded-xl space-y-2">
-            <label className="block text-xs font-semibold text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+          <div className="p-3.5 bg-primary-container/20 border border-primary/20 rounded-xl space-y-2">
+            <label className="block text-xs font-semibold text-primary flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-primary" />
               Multimeter Measurement (Optional)
             </label>
             <div className="flex gap-2">
@@ -168,12 +168,12 @@ export function CurrentDiagnosticStepCard({
                 placeholder="e.g. 4.95"
                 value={measurementVal}
                 onChange={(e) => setMeasurementVal(e.target.value)}
-                className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-border bg-surface text-text focus:outline-none focus:border-primary"
               />
               <select
                 value={measurementUnit}
                 onChange={(e) => setMeasurementUnit(e.target.value)}
-                className="px-2 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                className="px-2 py-1.5 text-xs rounded-lg border border-border bg-surface text-text focus:outline-none focus:border-primary"
               >
                 <option value="V">Volts (V)</option>
                 <option value="mA">Milliamps (mA)</option>
@@ -182,7 +182,7 @@ export function CurrentDiagnosticStepCard({
               </select>
             </div>
             {measurementUnit === "mA" && (
-              <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium pt-1">
+              <p className="text-[11px] text-amber-600 font-medium pt-1">
                 ⚠️ Current Safety: Connect meter in series with circuit load. Do not connect current probes directly across VCC and GND.
               </p>
             )}
@@ -191,7 +191,7 @@ export function CurrentDiagnosticStepCard({
 
         {/* Observation text */}
         <div>
-          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+          <label className="block text-xs font-medium text-text-muted mb-1">
             Additional Observations or Notes (Optional)
           </label>
           <input
@@ -199,7 +199,7 @@ export function CurrentDiagnosticStepCard({
             placeholder="e.g., LED flickered once then turned off completely..."
             value={observation}
             onChange={(e) => setObservation(e.target.value)}
-            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500"
+            className="w-full px-3 py-2 text-xs rounded-xl border border-border bg-surface text-text focus:outline-none focus:border-primary"
           />
         </div>
 
@@ -207,7 +207,7 @@ export function CurrentDiagnosticStepCard({
         <button
           type="submit"
           disabled={!selectedOption || isLoading}
-          className="w-full py-3 px-4 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+          className="w-full py-3 px-4 bg-primary hover:bg-primary-hover disabled:opacity-50 text-surface font-semibold text-xs rounded-xl shadow-neu-raised transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
         >
           {isLoading ? (
             <span>Evaluating Diagnostic Step Result...</span>

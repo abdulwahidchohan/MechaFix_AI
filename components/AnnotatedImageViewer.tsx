@@ -2,70 +2,71 @@
 
 import React, { useState } from "react";
 import { ImageAnnotation } from "@/lib/types";
-import { ZoomIn, ZoomOut, RotateCcw, Tag, Eye, Info, AlertTriangle } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, Tag } from "lucide-react";
 
 interface AnnotatedImageViewerProps {
-  imageDataUrl: string;
-  annotations?: ImageAnnotation[];
+  imageUrl: string;
+  annotations: ImageAnnotation[];
   title?: string;
 }
 
 export function AnnotatedImageViewer({
-  imageDataUrl,
+  imageUrl,
   annotations = [],
-  title = "Hardware Evidence Image",
+  title = "Evidence Image Component Overlays",
 }: AnnotatedImageViewerProps) {
+  const [selectedAnnId, setSelectedAnnId] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<"annotated" | "original">("annotated");
-  const [selectedAnn, setSelectedAnn] = useState<ImageAnnotation | null>(null);
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
 
-  const handleZoomIn = () => setZoomLevel((prev) => Math.min(prev + 0.25, 2.5));
-  const handleZoomOut = () => setZoomLevel((prev) => Math.max(prev - 0.25, 0.75));
-  const handleResetZoom = () => setZoomLevel(1);
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 2.5));
+  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.75));
+  const handleZoomReset = () => setZoom(1);
 
-  const getCategoryColor = (category: ImageAnnotation["category"], certainty: ImageAnnotation["certaintyType"]) => {
-    if (certainty === "safety_concern" || category === "damaged_region") {
-      return {
-        border: "border-red-500 bg-red-500/20 text-red-500",
-        badge: "bg-red-600 text-white",
-      };
-    }
+  const getCategoryStyles = (category: string) => {
     switch (category) {
-      case "board":
-      case "sensor":
-      case "actuator":
+      case "hazard":
+      case "damage":
         return {
-          border: "border-sky-500 bg-sky-500/20 text-sky-500",
+          box: "border-red-500 bg-red-500/10",
+          badge: "bg-red-600 text-white",
+        };
+      case "component":
+      case "ic":
+        return {
+          box: "border-sky-500 bg-sky-500/10",
           badge: "bg-sky-600 text-white",
         };
-      case "power":
+      case "connector":
+      case "pin":
+      case "header":
         return {
-          border: "border-amber-500 bg-amber-500/20 text-amber-500",
+          box: "border-amber-500 bg-amber-500/10",
           badge: "bg-amber-600 text-white",
         };
-      case "connector":
-      case "wire_region":
+      case "trace":
+      case "wire":
         return {
-          border: "border-indigo-500 bg-indigo-500/20 text-indigo-500",
-          badge: "bg-indigo-600 text-white",
+          box: "border-purple-500 bg-purple-500/10",
+          badge: "bg-purple-600 text-white",
         };
       default:
         return {
-          border: "border-emerald-500 bg-emerald-500/20 text-emerald-500",
+          box: "border-emerald-500 bg-emerald-500/10",
           badge: "bg-emerald-600 text-white",
         };
     }
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
+    <div className="bg-surface border border-border rounded-2xl p-4 flex flex-col gap-4 shadow-neu-raised">
       {/* Top Bar Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <Tag className="w-4 h-4 text-sky-500" />
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{title}</h4>
+          <Tag className="w-4 h-4 text-primary" />
+          <h4 className="text-sm font-bold text-text">{title}</h4>
           {annotations.length > 0 && (
-            <span className="px-2 py-0.5 text-[11px] font-semibold bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 rounded-full">
+            <span className="px-2 py-0.5 text-[11px] font-semibold bg-primary-container text-primary rounded-full">
               {annotations.length} Component Overlays
             </span>
           )}
@@ -73,14 +74,14 @@ export function AnnotatedImageViewer({
 
         <div className="flex items-center gap-2">
           {/* Tabs */}
-          <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-semibold">
+          <div className="flex p-1 bg-surface-sunken border border-border rounded-xl text-xs font-semibold">
             <button
               type="button"
               onClick={() => setActiveTab("annotated")}
-              className={`px-3 py-1 rounded-lg transition-all ${
+              className={`px-3 py-1 rounded-lg transition-all min-h-[36px] cursor-pointer ${
                 activeTab === "annotated"
-                  ? "bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                  ? "bg-surface text-primary shadow-neu-pressed font-bold"
+                  : "text-text-muted hover:text-text"
               }`}
             >
               Annotated View
@@ -88,10 +89,10 @@ export function AnnotatedImageViewer({
             <button
               type="button"
               onClick={() => setActiveTab("original")}
-              className={`px-3 py-1 rounded-lg transition-all ${
+              className={`px-3 py-1 rounded-lg transition-all min-h-[36px] cursor-pointer ${
                 activeTab === "original"
-                  ? "bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                  ? "bg-surface text-primary shadow-neu-pressed font-bold"
+                  : "text-text-muted hover:text-text"
               }`}
             >
               Original Photo
@@ -99,11 +100,11 @@ export function AnnotatedImageViewer({
           </div>
 
           {/* Zoom buttons */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 text-slate-600 dark:text-slate-300">
+          <div className="flex items-center gap-1 bg-surface-sunken border border-border rounded-xl p-1 text-text-muted">
             <button
               type="button"
               onClick={handleZoomIn}
-              className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-surface rounded-lg transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
               title="Zoom In"
             >
               <ZoomIn className="w-3.5 h-3.5" />
@@ -111,15 +112,15 @@ export function AnnotatedImageViewer({
             <button
               type="button"
               onClick={handleZoomOut}
-              className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-surface rounded-lg transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
               title="Zoom Out"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <button
               type="button"
-              onClick={handleResetZoom}
-              className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"
+              onClick={handleZoomReset}
+              className="p-1.5 hover:bg-surface rounded-lg transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
               title="Reset Zoom"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -128,48 +129,43 @@ export function AnnotatedImageViewer({
         </div>
       </div>
 
-      {/* Main Image Stage */}
-      <div className="relative w-full overflow-hidden bg-slate-950 rounded-xl flex items-center justify-center min-h-[320px] max-h-[500px] border border-slate-800">
+      {/* Main Image Canvas Container */}
+      <div className="relative overflow-auto max-h-[500px] border border-border rounded-xl bg-surface-sunken p-2 flex items-center justify-center custom-scrollbar">
         <div
-          className="relative transition-transform duration-200 ease-out max-w-full"
-          style={{ transform: `scale(${zoomLevel})` }}
+          className="relative inline-block transition-transform duration-200"
+          style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
         >
+          {/* Base Photo */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={imageDataUrl}
-            alt="Hardware Evidence"
-            className="max-h-[460px] object-contain block mx-auto select-none"
+            src={imageUrl}
+            alt={title}
+            className="max-h-[440px] w-auto object-contain rounded-lg shadow-sm"
           />
 
           {/* Overlay Bounding Boxes */}
           {activeTab === "annotated" &&
             annotations.map((ann) => {
               const [ymin, xmin, ymax, xmax] = ann.box2d;
-              const top = ymin / 10;
-              const left = xmin / 10;
-              const height = (ymax - ymin) / 10;
-              const width = (xmax - xmin) / 10;
+              const top = `${(ymin / 1000) * 100}%`;
+              const left = `${(xmin / 1000) * 100}%`;
+              const width = `${((xmax - xmin) / 1000) * 100}%`;
+              const height = `${((ymax - ymin) / 1000) * 100}%`;
 
-              const colors = getCategoryColor(ann.category, ann.certaintyType);
-              const isSelected = selectedAnn?.id === ann.id;
+              const styles = getCategoryStyles(ann.category);
+              const isSelected = selectedAnnId === ann.id;
 
               return (
                 <div
                   key={ann.id}
-                  onClick={() => setSelectedAnn(ann)}
-                  className={`absolute border-2 cursor-pointer transition-all ${colors.border} ${
-                    isSelected ? "ring-4 ring-white/80 z-20 shadow-lg scale-[1.02]" : "z-10 hover:opacity-90"
+                  onClick={() => setSelectedAnnId(isSelected ? null : ann.id)}
+                  style={{ top, left, width, height }}
+                  className={`absolute border-2 rounded transition-all cursor-pointer group ${styles.box} ${
+                    isSelected ? "ring-4 ring-primary ring-offset-1 z-20" : "hover:border-white z-10"
                   }`}
-                  style={{
-                    top: `${top}%`,
-                    left: `${left}%`,
-                    height: `${height}%`,
-                    width: `${width}%`,
-                  }}
-                  title={`${ann.label}: ${ann.observation}`}
                 >
                   <span
-                    className={`absolute -top-6 left-0 px-1.5 py-0.5 text-[10px] font-bold rounded shadow ${colors.badge} whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px]`}
+                    className={`absolute -top-5 left-0 px-1.5 py-0.5 text-[10px] font-bold rounded shadow ${styles.badge} whitespace-nowrap`}
                   >
                     {ann.label}
                   </span>
@@ -179,40 +175,35 @@ export function AnnotatedImageViewer({
         </div>
       </div>
 
-      {/* Annotation Detail Cards / Drawer */}
-      {annotations.length > 0 && (
-        <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-            <Eye className="w-3.5 h-3.5 text-sky-500" /> Detected Component Findings (Click marker or card)
+      {/* Annotations List Footer */}
+      {annotations.length > 0 && activeTab === "annotated" && (
+        <div className="space-y-2 pt-2 border-t border-border">
+          <div className="text-xs font-semibold text-text uppercase tracking-wider">
+            Detected Components & Observations
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar">
             {annotations.map((ann) => {
-              const isSelected = selectedAnn?.id === ann.id;
+              const isSelected = selectedAnnId === ann.id;
+              const styles = getCategoryStyles(ann.category);
               return (
                 <div
                   key={ann.id}
-                  onClick={() => setSelectedAnn(ann)}
-                  className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                  onClick={() => setSelectedAnnId(isSelected ? null : ann.id)}
+                  className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
                     isSelected
-                      ? "border-sky-500 bg-sky-50 dark:bg-sky-950/60 text-sky-900 dark:text-sky-200 ring-2 ring-sky-500/20"
-                      : "border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 hover:border-slate-300"
+                      ? "border-primary bg-primary-container text-primary shadow-neu-pressed font-semibold"
+                      : "border-border bg-surface-sunken hover:bg-surface-dim text-text"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="font-bold text-slate-900 dark:text-slate-100">
-                      {ann.label}
-                    </span>
-                    <span className="uppercase text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center justify-between gap-1.5 font-bold">
+                    <span className="truncate">{ann.label}</span>
+                    <span className={`px-1.5 py-0.5 text-[9px] rounded font-bold uppercase ${styles.badge}`}>
                       {ann.category}
                     </span>
                   </div>
-                  <p className="text-slate-600 dark:text-slate-400 leading-snug">
+                  <p className="text-[11px] text-text-muted mt-0.5 leading-snug line-clamp-2">
                     {ann.observation}
                   </p>
-                  <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-500">
-                    <Info className="w-3 h-3 text-sky-500" />
-                    <span>Certainty: <strong className="capitalize">{ann.certaintyType.replace("_", " ")}</strong></span>
-                  </div>
                 </div>
               );
             })}

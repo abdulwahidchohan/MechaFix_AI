@@ -95,7 +95,7 @@ export function PinoutViewerModal({
       case "Analog":
         return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20";
       default:
-        return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700";
+        return "bg-surface-sunken text-text-muted border border-border";
     }
   };
 

@@ -110,9 +110,9 @@ export function MultiImageEvidencePicker({
         {images.map((img) => (
           <div
             key={img.id}
-            className="relative group border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 bg-slate-50 dark:bg-slate-900/60 flex flex-col gap-2"
+            className="relative group border border-border rounded-xl p-2.5 bg-surface-sunken flex flex-col gap-2"
           >
-            <div className="relative h-32 w-full bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden flex items-center justify-center">
+            <div className="relative h-32 w-full bg-surface rounded-lg overflow-hidden flex items-center justify-center border border-border">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`data:${img.mimeType};base64,${img.data}`}
@@ -150,7 +150,7 @@ export function MultiImageEvidencePicker({
               <select
                 value={img.evidenceType}
                 onChange={(e) => updateType(img.id, e.target.value as any)}
-                className="mt-1 px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                className="mt-1 px-2 py-1 text-xs rounded border border-border bg-surface text-text focus:outline-none focus:border-primary"
               >
                 <option value="photo">Hardware Photo</option>
                 <option value="close_up_damage">Close-Up Damage / Solder</option>
@@ -163,12 +163,12 @@ export function MultiImageEvidencePicker({
         ))}
 
         {images.length < maxImages && (
-          <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-sky-500 dark:hover:border-sky-400 rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors h-48 bg-slate-50/50 dark:bg-slate-900/30">
-            <Upload className="w-6 h-6 text-slate-400 dark:text-slate-500" />
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+          <label className="border-2 border-dashed border-border hover:border-primary rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors h-48 bg-surface-sunken">
+            <Upload className="w-6 h-6 text-text-muted" />
+            <span className="text-xs font-medium text-text">
               Add Evidence Image
             </span>
-            <span className="text-[11px] text-slate-400 text-center">
+            <span className="text-[11px] text-text-muted text-center">
               Drag & drop or click to upload
             </span>
             <input

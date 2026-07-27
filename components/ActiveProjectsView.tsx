@@ -9,16 +9,22 @@ import { normalizeFirestoreDate } from "@/lib/date-utils";
 interface Diagnosis {
   id: string;
   createdAt: Date;
-  context: string;
+  context?: string;
+  setup?: {
+    board?: string;
+    component?: string;
+    powerSource?: string;
+    problemCategory?: string;
+  };
   result: {
     issue_summary: string;
-    components_detected: string[];
-    potential_causes: string[];
-    troubleshooting_steps: string[];
+    components_detected?: string[];
+    potential_causes?: string[];
+    troubleshooting_steps?: string[];
   };
 }
 
-export default function ActiveProjectsView({ onViewReport }: { onViewReport: (result: any) => void }) {
+export default function ActiveProjectsView({ onViewReport }: { onViewReport: (record: any) => void }) {
   const { user } = useAuth();
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,10 +42,12 @@ export default function ActiveProjectsView({ onViewReport }: { onViewReport: (re
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => {
         const data = doc.data();
+        const contextStr = data.context || (data.setup?.board ? `${data.setup.board} - ${data.setup.component || "Circuit Analysis"}` : "Circuit Analysis");
         return {
           id: doc.id,
+          ...data,
           createdAt: normalizeFirestoreDate(data.createdAt),
-          context: data.context || "",
+          context: contextStr,
           result: data.result || {}
         } as Diagnosis;
       });
@@ -99,11 +107,11 @@ export default function ActiveProjectsView({ onViewReport }: { onViewReport: (re
                   {diag.context || "Circuit Analysis"}
                 </h3>
                 <p className="font-sans text-sm text-text-muted line-clamp-2 mb-4">
-                  {diag.result.issue_summary || "Diagnosis pending or incomplete."}
+                  {diag.result?.issue_summary || "Diagnosis pending or incomplete."}
                 </p>
               </div>
               <button 
-                onClick={() => onViewReport(diag.result)}
+                onClick={() => onViewReport(diag)}
                 className="w-full py-2.5 rounded-lg bg-surface-sunken text-primary font-sans font-semibold shadow-neu-pressed hover:bg-surface-dim transition-colors flex items-center justify-center gap-2 group-hover:text-primary-hover"
               >
                 View Full Report

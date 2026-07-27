@@ -26,6 +26,29 @@ interface Diagnosis {
   };
 }
 
+function parseCreatedAt(value: any): Date {
+  if (!value) return new Date();
+
+  if (typeof value?.toDate === "function") {
+    return value.toDate();
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value?.seconds === "number") {
+    return new Date(value.seconds * 1000);
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  return new Date();
+}
+
 export default function RepairHistoryView({ onViewReport }: { onViewReport?: (result: any) => void }) {
   const { user } = useAuth();
   const [history, setHistory] = useState<Diagnosis[]>([]);
@@ -48,7 +71,7 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
             const data = doc.data();
             return {
               id: doc.id,
-              createdAt: data.createdAt?.toDate() || new Date(),
+              createdAt: parseCreatedAt(data.createdAt),
               board: data.board,
               component: data.component,
               status: data.status || "in_progress",
@@ -263,4 +286,3 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
     </div>
   );
 }
-

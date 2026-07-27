@@ -69,36 +69,21 @@ export async function POST(req: NextRequest) {
     let generatedImageBase64 = "";
     let lastError: any = null;
 
-    const selectedImageModel = MODELS.imageModel || "imagen-3.0-generate-002";
+    const selectedImageModel = MODELS.imageModel || "gemini-2.5-flash-image";
 
-    // Attempt 1: Official generateImages API for Imagen models
-    if (typeof (client.models as any).generateImages === "function") {
-      try {
-        const response = await (client.models as any).generateImages({
-          model: selectedImageModel.startsWith("imagen") ? selectedImageModel : "imagen-3.0-generate-002",
-          prompt: promptText,
-          config: {
-            numberOfImages: 1,
-            outputMimeType: "image/png",
-            aspectRatio: "4:3",
-          },
-        });
+    const candidateImageModels = Array.from(new Set([
+      selectedImageModel,
+      "gemini-2.5-flash-image",
+      "gemini-3.1-flash-lite-image",
+      "gemini-3.1-flash-image",
+    ]));
 
-        const img = response?.generatedImages?.[0]?.image;
-        if (img?.imageBytes) {
-          generatedImageBase64 = `data:image/png;base64,${img.imageBytes}`;
-        }
-      } catch (genImgErr: any) {
-        lastError = genImgErr;
-        console.warn("client.models.generateImages failed, trying generateContent fallback:", genImgErr?.message || genImgErr);
-      }
-    }
+    for (const modelName of candidateImageModels) {
+      if (generatedImageBase64) break;
 
-    // Attempt 2: generateContent API fallback
-    if (!generatedImageBase64) {
       try {
         const response = await client.models.generateContent({
-          model: selectedImageModel,
+          model: modelName,
           contents: {
             parts: [{ text: promptText }],
           },
@@ -118,9 +103,9 @@ export async function POST(req: NextRequest) {
             }
           }
         }
-      } catch (genContentErr: any) {
-        lastError = genContentErr;
-        console.error("client.models.generateContent image generation failed:", genContentErr?.message || genContentErr);
+      } catch (genErr: any) {
+        lastError = genErr;
+        console.warn(`Gemini image generation with ${modelName} failed:`, genErr?.message || genErr);
       }
     }
 

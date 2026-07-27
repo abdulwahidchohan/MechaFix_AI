@@ -170,6 +170,27 @@ flowchart TD
 
 ---
 
+## Testing
+
+MechaFix AI includes 32 non-destructive automated tests:
+- **23 unit tests**
+- **3 API contract tests**
+- **3 authentication and ownership tests**
+- **3 diagnostic state-machine tests**
+
+Topic coverage within the unit suite includes environment validation, Gemini model policy, error mapping, TF-IDF retrieval, timestamp normalization, annotation validation, PDF generation, and safety rules.
+
+External Gemini and Firestore boundaries are mocked during the default test suite to avoid paid API usage and production data mutation. Browser workflows are documented separately through the manual production-verification checklist in [`docs/PRODUCTION_VERIFICATION.md`](./docs/PRODUCTION_VERIFICATION.md).
+
+Run the complete CI verification pipeline:
+```bash
+npm run verify
+```
+
+For full test architecture details and test commands, see [`docs/TESTING.md`](./docs/TESTING.md).
+
+---
+
 ## Safety Notice
 
 MechaFix AI is an educational troubleshooting assistant.

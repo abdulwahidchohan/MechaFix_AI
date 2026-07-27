@@ -93,7 +93,7 @@ export function parseApiError(err: any): AppApiError {
     return new AppApiError("Requested resource not found.", "DIAGNOSIS_NOT_FOUND", 404);
   }
   if (errCode === "already-exists" || errCode === "stale_step" || errCode === "duplicate_request") {
-    return new AppApiError(errStr || "Duplicate or stale request.", err?.code || "DUPLICATE_REQUEST", 409);
+    return new AppApiError(errStr || "Duplicate or stale request.", "DUPLICATE_REQUEST", 409);
   }
   if (errCode === "invalid-argument") {
     return new AppApiError("Invalid argument provided.", "INVALID_REQUEST", 400);

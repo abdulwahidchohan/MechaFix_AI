@@ -11,9 +11,14 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "npx tsx --test tests/env-validation.test.ts",
+    "test": "npx tsx --test tests/**/*.test.ts",
+    "test:unit": "npx tsx --test tests/unit/*.test.ts tests/env-validation.test.ts",
+    "test:api": "npx tsx --test tests/api/*.test.ts",
+    "test:auth": "npx tsx --test tests/auth-ownership/*.test.ts",
+    "test:state": "npx tsx --test tests/state-machine/*.test.ts",
+    "test:all": "npx tsx --test tests/**/*.test.ts",
     "test:static": "npx tsx --test tests/env-validation.test.ts",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "clean": "node -e \"for(const p of ['.next','coverage','out'])require('fs').rmSync(p,{recursive:true,force:true})\""
   },
   "dependencies": {

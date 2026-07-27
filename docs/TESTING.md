@@ -1,42 +1,68 @@
-# MechaFix AI - Testing & QA Protocol
+# MechaFix AI Test Architecture & Execution Guide
 
-## Verification Commands & Status
+MechaFix AI uses Node's native test runner (`tsx --test`) to execute safe, maintainable, non-destructive automated test suites without requiring paid API keys or live production database credentials for standard test runs.
 
-### 1. Production Build Compilation
-```bash
-npm run build
+## Non-Overlapping Test Suite Architecture
+
+```text
+tests/
+├── env-validation.test.ts          # Legacy & environmental regression unit tests (10 tests)
+├── unit/
+│   ├── config-env.test.ts          # Capability, Firebase config, Date normalization & Gemini error unit tests (6 tests)
+│   ├── rag.test.ts                 # Local TF-IDF RAG retrieval & prompt safety unit tests (4 tests)
+│   ├── image-annotation.test.ts    # Image validation & bounding box coordinate unit tests (2 tests)
+│   └── pdf.test.ts                 # Non-destructive in-memory jsPDF report generation unit test (1 test)
+├── api/
+│   └── routes.test.ts              # API route handler contracts & error status mapping tests (3 tests)
+├── auth-ownership/
+│   └── auth-ownership.test.ts      # Token validation & User-A vs User-B ownership isolation tests (3 tests)
+└── state-machine/
+    └── state-machine.test.ts       # Diagnostic state machine transitions & idempotency tests (3 tests)
 ```
-- **Result**: `✓ Compiled successfully` (Next.js 15.4 App Router)
 
-### 2. Static Code & Linter Validation
+---
+
+## Non-Overlapping Suite Summary
+
+| Non-Overlapping Suite | Test Directory | Count | Execution Description |
+| :--- | :--- | :---: | :--- |
+| **Unit Tests** | `tests/unit/*.test.ts`, `tests/env-validation.test.ts` | **23** | Pure local logic, capabilities, dates, RAG, images, PDF, and error parsing. |
+| **API Contract & Route Tests** | `tests/api/*.test.ts` | **3** | Handlers, `/api/capabilities`, HTTP status codes (`401`, `403`, `404`, `409`, `429`, `503`). |
+| **Auth & Ownership Tests** | `tests/auth-ownership/*.test.ts` | **3** | Synthetic Bearer tokens & User-A vs User-B Firestore document isolation. |
+| **State-Machine Tests** | `tests/state-machine/*.test.ts` | **3** | Step transitions, hypothesis states, progress tracking, and idempotency. |
+| **Total Automated Tests** | **All non-overlapping suites** | **32** | **Main Test Suite**: Executes cleanly with 0 external credentials needed. |
+
+> **Note on Topic Breakdown**: Topic counts (e.g. Environment & Config: 6, RAG: 4, Image: 2, PDF: 1, Legacy Env: 10) are descriptive sub-categories of the 23 unit tests and **must not be added to the 32-test total**.
+
+---
+
+## Command Matrix
+
 ```bash
-npm run lint
+# 1. Run unit tests only (23 tests)
+npm run test:unit
+
+# 2. Run API route handler & contract tests (3 tests)
+npm run test:api
+
+# 3. Run auth & ownership isolation tests (3 tests)
+npm run test:auth
+
+# 4. Run state-machine transition tests (3 tests)
+npm run test:state
+
+# 5. Run full automated test suite (32 tests)
+npm test
+
+# 6. Run complete CI verification pipeline (Lint -> Typecheck -> Test -> Build)
+npm run verify
 ```
-- **Result**: `0 errors, 0 warnings` (Clean ESLint verification across all routes and components)
 
-### 3. Type Checking
-```bash
-npm run typecheck
-```
-- **Result**: `✓ Type checking passed cleanly with 0 TypeScript errors`
+---
 
-### 4. Automated Tests
-```bash
-npm run test
-```
-- **Result**: `✓ All automated unit and API sanity tests passed successfully`
+## Safety & Non-Destructive Principles
 
-## Test Coverage Matrix
-
-| Feature Module | Verification Test | Status |
-|---|---|---|
-| **Authentication** | Google OAuth, Firebase ID token server-side verification | PASS |
-| **New Diagnosis** | Preset hardware selection, text form input, image submission | PASS |
-| **Camera Capture** | `getUserMedia` stream cleanup, object URL revocation, mobile file fallback | PASS |
-| **Gemini AI Analysis** | `/api/gemini/analyze` JSON structured output, grounding, input limits | PASS |
-| **Follow-Up Assistant** | `/api/gemini/follow-up` history context, smoke/mains safety enforcement | PASS |
-| **Diagnosis Lifecycle** | Status updates (in_progress, resolved, partially_resolved, reopen) | PASS |
-| **Repair History** | Real-time Firestore sync, filter tabs (All, Resolved, Partial) | PASS |
-| **Report Actions** | Markdown copy, `.md` file download, print CSS styling | PASS |
-| **Responsive UI** | Tested at 360px, 390px, 768px, 1024px, 1440px | PASS |
-| **Accessibility** | Focus management, ARIA labels, Escape key listeners, touch target >= 44px | PASS |
+1. **No External Paid Calls**: Automated test suites mock Gemini API model calls to prevent incurring quota charges.
+2. **No Production Database Mutation**: Tests execute in-memory with synthetic fixtures.
+3. **No Hardcoded Credentials**: Tests use synthetic placeholders and verify token validation logic without exposing secret keys.
+4. **Narrow PDF Scope**: The PDF unit test verifies in-memory buffer creation and field wrapping. Browser download and visual PDF layout remain covered by manual smoke testing.

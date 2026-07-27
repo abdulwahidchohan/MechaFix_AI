@@ -19,6 +19,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json(
+        {
+          error: "Gemini API key environment variable is missing or unconfigured.",
+          code: "CONFIG_MISSING",
+        },
+        { status: 503 }
+      );
+    }
+
     const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -39,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { diagnosisId, diagramTitle, board, component } = body;
+    const { diagnosisId, diagramTitle, board, component, requestId } = body;
 
     if (!diagnosisId) {
       return NextResponse.json(
@@ -54,14 +64,47 @@ export async function POST(req: NextRequest) {
 
     if (!docSnap.exists) {
       return NextResponse.json(
-        { error: "Diagnosis session not found.", code: "DIAGNOSIS_NOT_FOUND" },
+        { error: "Diagnosis session not found or access denied.", code: "DIAGNOSIS_NOT_FOUND" },
         { status: 404 }
       );
     }
 
     const record = normalizeDiagnosis(docSnap.data() as any);
-    const boardName = board || record.setup?.board || "Arduino UNO";
-    const compName = component || record.setup?.component || "Sensor";
+    const boardName = String(board || record.setup?.board || "Arduino UNO").trim();
+    const compName = String(component || record.setup?.component || "Sensor").trim();
+
+    // Check duplicate request ID idempotency
+    if (requestId && record.generatedReferences?.some((r) => r.id === requestId)) {
+      const existingRef = record.generatedReferences.find((r) => r.id === requestId);
+      return NextResponse.json({ success: true, reference: existingRef, isDuplicate: true });
+    }
+
+    // Safety checks against hazardous AC mains, swollen LiPo, or burning smell
+    const fullContext = `${boardName} ${compName} ${JSON.stringify(record.originalInput || {})}`.toLowerCase();
+    const isHazardous = /110v|220v|mains|ac voltage|burning|smoke|swollen|lipo direct/i.test(fullContext);
+
+    if (isHazardous) {
+      return NextResponse.json(
+        {
+          error: "Reference diagram generation refused: High-voltage AC mains or hazardous battery conditions detected.",
+          code: "SAFETY_REFUSAL",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Safety check for unknown/unverified pinouts
+    const supportedBoards = ["arduino", "esp32", "raspberry", "pico", "stm32", "teensy", "uno", "mega", "nano"];
+    const isKnownBoard = supportedBoards.some((b) => boardName.toLowerCase().includes(b));
+    if (!isKnownBoard) {
+      return NextResponse.json(
+        {
+          error: `Unverified pinout configuration for board: ${boardName}.`,
+          code: "SAFETY_REFUSAL",
+        },
+        { status: 403 }
+      );
+    }
 
     const promptText = `A clear, high-resolution technical educational wiring diagram showing how to wire a ${compName} to an ${boardName} board. Clean vector schematics style with color-coded jumper wires (Red for VCC/5V, Black for GND, Blue/Yellow for Signal data lines), labeled pin headers, breadboard layout, and high contrast against a neutral off-white background. Professional electronics engineering illustration.`;
 
@@ -69,44 +112,33 @@ export async function POST(req: NextRequest) {
     let generatedImageBase64 = "";
     let lastError: any = null;
 
-    const selectedImageModel = MODELS.imageModel || "gemini-2.5-flash-image";
+    const selectedImageModel = MODELS.imageModel || "gemini-3.1-flash-image";
 
-    const candidateImageModels = Array.from(new Set([
-      selectedImageModel,
-      "gemini-2.5-flash-image",
-      "gemini-3.1-flash-lite-image",
-      "gemini-3.1-flash-image",
-    ]));
-
-    for (const modelName of candidateImageModels) {
-      if (generatedImageBase64) break;
-
-      try {
-        const response = await client.models.generateContent({
-          model: modelName,
-          contents: {
-            parts: [{ text: promptText }],
+    try {
+      const response = await client.models.generateContent({
+        model: selectedImageModel,
+        contents: {
+          parts: [{ text: promptText }],
+        },
+        config: {
+          imageConfig: {
+            aspectRatio: "4:3",
           },
-          config: {
-            imageConfig: {
-              aspectRatio: "4:3",
-            },
-          },
-        });
+        },
+      });
 
-        if (response.candidates?.[0]?.content?.parts) {
-          for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData?.data) {
-              const mime = part.inlineData.mimeType || "image/png";
-              generatedImageBase64 = `data:${mime};base64,${part.inlineData.data}`;
-              break;
-            }
+      if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData?.data) {
+            const mime = part.inlineData.mimeType || "image/png";
+            generatedImageBase64 = `data:${mime};base64,${part.inlineData.data}`;
+            break;
           }
         }
-      } catch (genErr: any) {
-        lastError = genErr;
-        console.warn(`Gemini image generation with ${modelName} failed:`, genErr?.message || genErr);
       }
+    } catch (genErr: any) {
+      lastError = genErr;
+      console.warn(`Gemini image generation with ${selectedImageModel} failed:`, genErr?.message || genErr);
     }
 
     if (!generatedImageBase64) {
@@ -125,13 +157,13 @@ export async function POST(req: NextRequest) {
     }
 
     const newReference: GeneratedReference = {
-      id: `ref-${Date.now()}`,
+      id: requestId || `ref-${Date.now()}`,
       title: diagramTitle || `Educational Reference: ${boardName} to ${compName}`,
       description: `AI-generated illustrative reference schematic for ${compName} connected to ${boardName}.`,
       imageUrl: generatedImageBase64,
       generatedAt: new Date().toISOString(),
       promptUsed: promptText,
-      disclaimer: "AI-generated reference diagram for educational visualization only. Always verify pin numbers, logic voltages, and current limits with official manufacturer datasheets before connecting power.",
+      disclaimer: "AI-generated reference diagram. Verify every pinout, voltage limit, component rating, and connection against official documentation before applying power.",
     };
 
     const updatedReferences = [...(record.generatedReferences || []), newReference];

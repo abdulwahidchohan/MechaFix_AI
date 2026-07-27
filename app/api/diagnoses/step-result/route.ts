@@ -3,7 +3,7 @@ import { verifyUserToken, getAdminFirestore, FirebaseAdminError } from "@/lib/fi
 import { runStepEvaluation } from "@/lib/ai/interactions";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { normalizeDiagnosis, StepResult } from "@/lib/types";
-import { GeminiServiceError } from "@/lib/ai/errors";
+import { parseApiError } from "@/lib/ai/errors";
 
 export const runtime = "nodejs";
 
@@ -166,14 +166,7 @@ export async function POST(req: NextRequest) {
       analysisOfResult: aiEval.analysisOfResult || "Step result logged.",
     });
   } catch (err: any) {
-    console.error("Step result processing error:", err);
-
-    if (err instanceof GeminiServiceError) {
-      return NextResponse.json(
-        { error: err.message, code: err.code },
-        { status: err.status }
-      );
-    }
+    console.error("Step Result Error:", err);
 
     if (err instanceof FirebaseAdminError) {
       return NextResponse.json(
@@ -182,9 +175,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const parsed = parseApiError(err);
     return NextResponse.json(
-      { error: err?.message || "Failed to submit step result.", code: err?.code || "INTERNAL_SERVER_ERROR" },
-      { status: err?.status || 500 }
+      { error: parsed.message, code: parsed.code },
+      { status: parsed.status }
     );
   }
 }

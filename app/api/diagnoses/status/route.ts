@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserToken, getAdminFirestore, FirebaseAdminError } from "@/lib/firebase-admin";
+import { parseApiError } from "@/lib/ai/errors";
 
 export const runtime = "nodejs";
 
@@ -84,9 +85,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const parsed = parseApiError(error);
     return NextResponse.json(
-      { error: error.message || "Failed to update diagnosis status.", code: error?.code || "INTERNAL_SERVER_ERROR" },
-      { status: error?.status || 500 }
+      { error: parsed.message, code: parsed.code },
+      { status: parsed.status }
     );
   }
 }

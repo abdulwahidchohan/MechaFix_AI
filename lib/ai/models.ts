@@ -19,10 +19,10 @@ export const ALLOWED_EMBEDDING_MODELS = [
 ] as const;
 
 export const ALLOWED_IMAGE_MODELS = [
-  "gemini-2.5-flash-image",
   "gemini-3.1-flash-image",
   "gemini-3.1-flash-lite-image",
   "gemini-3-pro-image",
+  "gemini-2.5-flash-image",
   "imagen-3.0-generate-002",
 ] as const;
 
@@ -46,10 +46,10 @@ export const MODELS = {
   },
 
   get imageModel(): string {
-    const configured = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+    const configured = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image";
     if (!ALLOWED_IMAGE_MODELS.includes(configured as any)) {
-      console.warn(`[Model Registry] Invalid image model "${configured}". Falling back to gemini-2.5-flash-image.`);
-      return "gemini-2.5-flash-image";
+      console.warn(`[Model Registry] Invalid image model "${configured}". Falling back to gemini-3.1-flash-image.`);
+      return "gemini-3.1-flash-image";
     }
     return configured;
   },
@@ -68,7 +68,7 @@ export const MODELS = {
   },
 
   fallbackDiagnosisModel: "gemini-3.5-flash-lite",
-  fallbackImageModel: "gemini-2.5-flash-image",
+  fallbackImageModel: "gemini-3.1-flash-image",
 };
 
 /**

@@ -46,7 +46,7 @@ MechaFix AI is a hardware diagnostic lab application that enables users to troub
 - `POST /api/gemini/generate-reference-diagram`: Generates educational reference schematics using `gemini-3.1-flash-image` (when enabled) with fallback vector graphics.
 
 ## Security Controls
-- **Zero-Trust Security Rules**: Deployed to Firestore project `mystic-core-pgtt6`.
+- **Zero-Trust Security Rules**: Deployed to Firestore project `hekto-awm`.
 - **Server-Side AI Proxy**: All Gemini API keys stored securely in server environment (`process.env.GEMINI_API_KEY`).
 - **Token Verification**: User identity verified on all `/api/*` routes via Firebase Admin SDK.
 

@@ -1,230 +1,223 @@
 # MechaFix AI
 
-AI-powered, image-aware hardware troubleshooting for robotics, mechatronics, and electronics students.
+MechaFix AI is an AI-assisted electronics and mechatronics troubleshooting platform that combines text and image understanding, guided diagnostic steps, verified hardware references, user-reported measurements, RAG-grounded knowledge retrieval, and repair documentation.
 
-## Live Application
-- **Stable Production URL**: [https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app](https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app)
-
-## Public Repository
-- **GitHub Repository**: [https://github.com/abdulwahidchohan/mechafix-ai](https://github.com/abdulwahidchohan/mechafix-ai)
-
----
-
-## Project Overview
-**MechaFix AI** is an intelligent, full-stack hardware troubleshooting assistant built for electronics engineers, makers, educators, and IoT developers. It turns complex hardware symptoms, component error codes, and breadboard photos into precise, actionable step-by-step repair protocols powered by **Gemini 2.5 Flash**, **Cloud Firestore**, and a lightweight local **Grounding RAG Knowledge Retrieval Pipeline**.
-
-> **Originality Statement**: MechaFix AI is not a general-purpose chatbot. It combines structured hardware context, multimodal circuit-image inspection, retrieval from a curated electronics knowledge base, manually logged measurements, and an evidence-aware troubleshooting workflow. The application separates visible observations, user-provided facts, unverified details, and possible explanations before recommending one safe diagnostic step at a time.
+## Try MechaFix AI
+- **Live Application:** [https://mecha-fix-ai.vercel.app](https://mecha-fix-ai.vercel.app)
+- **Source Code:** [https://github.com/abdulwahidchohan/MechaFix_AI](https://github.com/abdulwahidchohan/MechaFix_AI)
+- **Project Status:** Active Production System
 
 ---
 
-## Problem Statement
-Makers, students, and engineers routinely waste hours diagnosing hardware failures caused by missing common grounds, power rail voltage dips (brownouts), missing I2C pull-up resistors, or improper motor driver pinouts. Traditional web searches return scattered forums or generic advice, while raw AI models can hallucinate connection details or prescribe unsafe high-voltage steps.
+## Application Preview
+
+The interface uses a responsive hybrid-neumorphic dashboard designed for electronics and robotics troubleshooting. The screenshots below show the diagnosis entry point, active diagnostic workspace, annotated evidence, and AI-generated educational reference diagram.
+
+### Diagnostic Dashboard
+
+![MechaFix AI Diagnostic Dashboard](./public/screenshots/mechafix-dashboard.png)
+
+The dashboard provides a clear entry point for starting a new diagnosis, continuing an active session, reviewing repair history, selecting common hardware problem presets, opening safety guidance, and changing the visual theme.
+
+### Active Diagnostic Workspace
+
+![MechaFix AI Active Diagnostic Workspace](./public/screenshots/mechafix-diagnostic-report.png)
+
+The diagnostic workspace combines the issue summary, uploaded evidence, AI-assisted image annotations, image-quality feedback, guided test steps, hypothesis tracking, verified pinout references, measurements, follow-up assistance, and report export.
+
+### AI-Assisted Image Annotations
+
+![MechaFix AI Annotated Evidence](./public/screenshots/mechafix-annotated-evidence.png)
+
+Uploaded hardware photographs are analyzed by the multimodal AI to generate bounding box overlays for detected boards, sensors, drivers, and wiring regions, providing instant visual feedback on hardware components.
+
+### AI-Generated Educational Reference Diagram
+
+![MechaFix AI Educational Reference Diagram Modal](./public/screenshots/mechafix-reference-diagram.png)
+
+Reference diagrams are displayed separately from uploaded evidence. Every generated visual is marked as synthetic and educational, and users are instructed to verify pin numbers, voltage limits, component ratings, and connections against official documentation before applying power.
 
 ---
 
-## Target Users
-- **Robotics & Electronics Students**: Debugging sensor readings, motor driver connections, and microcontroller pinouts.
-- **Makers & Hobbyists**: Building IoT devices, home automation nodes, and breadboard prototypes.
-- **Lab Instructors & Educators**: Demonstrating systematic diagnostic workflows and safety-first electronics testing.
+## How MechaFix AI Works
+
+1. **Start a Diagnosis**  
+   The user selects a board, component, power source, and problem category, then describes the expected and actual behavior. The user may begin with a text-only description, single photo, multiple photos, or a common preset.
+
+2. **Add Visual Evidence**  
+   Accepts multiple evidence images classified by purpose (circuit overview, power section, wiring close-up, component detail, error display) with automated quality validation.
+
+3. **AI-Assisted Analysis**  
+   The primary diagnosis model (`gemini-3.6-flash`) analyzes symptoms, hardware context, uploaded images, visible wiring, and user errors combined with RAG knowledge retrieval.
+
+4. **Grounded Knowledge Retrieval**  
+   Retrieves relevant information from 12 curated manuals using TF-IDF scoring and embeddings to ground diagnosis without hallucination.
+
+5. **Guided Diagnostic Loop**  
+   Presents one safe diagnostic step at a time with test instructions, safety notes, expected results, and optional measurement logging.
+
+6. **Verified References and Educational Diagrams**  
+   Access official pinouts, logic ratings, and generate synthetic educational wiring diagrams powered by `gemini-3.1-flash-image`.
+
+7. **Resolve and Export**  
+   Record resolution details, repair notes, archive sessions in Cloud Firestore, and export complete reports as PDF or Markdown.
 
 ---
 
-## Quick Demo Guide for Evaluators
-1. Open the [Live Application](https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app).
-2. Click **Sign in with Google** to initialize your private diagnostic session.
-3. On the main dashboard, select **HC-SR04 Returns Zero**.
-4. Review the prefilled setup:
-   - **Board**: Arduino UNO
-   - **Component**: HC-SR04 Ultrasonic Sensor
-   - **Problem Category**: Sensor Not Responding
-   - **Actual Behavior**: Sensor repeatedly returns zero.
-5. Click **Continue to Photo Inspection** (optionally upload a circuit photo or choose "Continue with Text-Only Diagnosis").
-6. Click **Generate AI Diagnosis Report**.
-7. Expand **Knowledge Sources** to inspect grounded manual excerpts with qualitative relevance badges (`Strong Match`, `Relevant Match`).
-8. Ask a follow-up question in the assistant composer:
-   `I measured 4.8 V between VCC and GND. What should I check next?`
-9. Log the measurement using the **Log Measurement** drawer.
-10. Mark the diagnosis as **Resolved** with a root cause note, then open **Repair History** to view or export the report as Markdown.
+## Visual Diagnostic Workflow
 
----
-
-## Core Verified Features
-- **RAG Knowledge Retrieval Pipeline**: Queries 12 curated hardware troubleshooting manuals (`/knowledge/*.md`) using weighted TF-IDF keyword scoring to ground Gemini analysis and display qualitative relevance badges (`Strong Match`, `Relevant Match`, `Related Source`).
-- **Image & Text Diagnosis**: Multi-modal photo inspection (5 MB max limit; JPG, PNG, WebP) and text-based failure breakdown.
-- **Image Quality Recovery Path**: In cases of low clarity or obscured components, users can smoothly transition to "Continue with Text-Only Diagnosis" while preserving form inputs and excluding unverified visual observations.
-- **Hardware Quick-Start Presets**: Instant prefill for common cases:
-  - HC-SR04 returns zero
-  - Servo motor jittering
-  - Arduino resets on motor start
-  - I2C device not found
-- **Live Camera Capture & Mobile Fallback**: Built-in media capture with automatic object URL / MediaStream resource cleanup.
-- **Interactive AI Follow-Up Assistant**: Real-time contextual chat grounded in initial diagnostic findings and safety protocols.
-- **Diagnosis Lifecycle & Repair History**: Save, track, mark as resolved (with root cause recording), partially resolved, or reopen sessions synced real-time with Cloud Firestore.
-- **Report Actions**: One-click Markdown copy, `.md` report download, and clean print layout CSS.
-- **Hybrid Neumorphic UI & 5 Themes**: Cloud, Matcha, Peach Pop, Bubblegum, and Midnight themes with SSR hydration safety via `useSyncExternalStore`.
-
----
-
-## AI-Powered Diagnosis & Safety Guardrails
-MechaFix AI enforces strict system instructions to guarantee safe, evidence-grounded responses:
-- **Smoke / Burning Smell / Thermal Hazard**: Instructs immediate power disconnection and halts further testing.
-- **Exposed AC Mains (110V - 240V)**: Refuses procedural repair instructions and directs user to a licensed electrician.
-- **No Invented Measurements**: Never claims to have measured voltage, current, or pin levels without explicit user input.
-- **No Hidden-Wire Assumptions**: Clearly tags unverified connections as unconfirmed visual observations.
-- **One Test at a Time**: Delivers single, safe, actionable troubleshooting steps.
-
----
-
-## RAG Knowledge Pipeline Explanation
-MechaFix AI uses a lightweight local RAG pipeline. The user’s query is matched against chunks from 12 curated Markdown troubleshooting manuals. The most relevant excerpts are included as grounded context in the Gemini request, and only the retrieved sources are displayed in the report.
-
-Curated Knowledge Base:
-1. `arduino-power.md`: Power loops, voltage drops, and decoupling capacitors.
-2. `common-ground.md`: Shared reference requirements between sub-circuits.
-3. `hc-sr04.md`: Ultrasonic distance timing, Echo voltage divider, and pulseIn timeouts.
-4. `servo-jitter.md`: PWM signal noise, current spikes, and dedicated power regulators.
-5. `dc-motor-driver.md`: Inductive loads, flyback diodes, and H-bridge drivers.
-6. `l298n.md`: L298N BJT voltage drop, onboard 5V enable jumpers, and terminal wiring.
-7. `i2c-not-found.md`: I2C pinouts, pull-up resistors, address scanner, and PCF8574 modules.
-8. `serial-monitor.md`: Baud rate matching, UART TX/RX cross-wiring, and ESP32 boot ROM.
-9. `breadboard.md`: Internal spring clip resistance and split power rails.
-10. `sensor-instability.md`: ADC noise, exponential moving average (EMA) filtering.
-11. `circuit-photo-guide.md`: Overhead lighting, trace clearance, and IC marking focus.
-12. `electronics-safety.md`: Thermal runaway, swollen lithium batteries, exposed AC mains rules.
-
----
-
-## Application Screenshots
-- **Dashboard & Presets**: `public/og-image.png`
-- **Grounded AI Diagnosis**: Interactive view displaying structured sections, grounded RAG cards, and follow-up composer.
-
----
-
-## Technology Stack
-- **Frontend Framework**: Next.js 15.4.9 (App Router)
-- **UI Engine**: React 19.2.1 & React DOM 19.2.1
-- **Styling**: Tailwind CSS 4.1.11 with custom PostCSS plugin configuration
-- **AI SDK**: `@google/genai` 2.4.0 (Server-side proxy via `/api/gemini/analyze` and `/api/gemini/follow-up`)
-- **Database & Auth**: Firebase JS SDK 12.16.0 & Firebase Admin 14.2.0 (Cloud Firestore with real-time user-isolated rules)
-- **Icons**: Material Symbols Outlined & Lucide React 0.553.0
-
----
-
-## Cloud Firestore Structure
-Diagnostic records are stored in Cloud Firestore under `/diagnoses/{diagnosisId}` with user isolation:
-
-```json
-{
-  "userId": "firebase_uid",
-  "board": "Arduino UNO",
-  "component": "HC-SR04 Ultrasonic Sensor",
-  "powerSource": "USB 5V",
-  "problemCategory": "Sensor Not Responding",
-  "status": "In Progress",
-  "analysis": {
-    "observedInImage": [...],
-    "providedByUser": [...],
-    "unverified": [...],
-    "possibleCauses": [...],
-    "currentSafeStep": "...",
-    "knowledgeSources": [...]
-  },
-  "measurements": [...],
-  "followUpMessages": [...],
-  "createdAt": "ISO-8601 Timestamp"
-}
+```mermaid
+flowchart LR
+    A[Start New Diagnosis] --> B[Describe Hardware Setup]
+    B --> C{Add Evidence?}
+    C -->|Text Only| D[Retrieve Relevant Knowledge]
+    C -->|Photos| E[Image Quality & Visual Analysis]
+    E --> D
+    D --> F[Generate Structured Diagnosis]
+    F --> G[Show Current Diagnostic Step]
+    G --> H[User Reports Result or Measurement]
+    H --> I[Update Hypotheses & Progress]
+    I --> J{More Testing Required?}
+    J -->|Yes| G
+    J -->|No| K[Resolve or Record Partial Outcome]
+    K --> L[Export Report & Save History]
 ```
 
 ---
 
-## Local Installation & Environment Variables
+## Interface Guide
 
-Create `.env.local` using `.env.example`:
+- **Dashboard**: New Diagnosis, Continue Session, Active Projects, Repair History, Issue Presets, Theme Selector, Safety Protocols, Documentation.
+- **Diagnostic Report**: Session status, Target board/component, Photo clarity notice, Diagnostic issue summary, Original & annotated evidence, Current diagnostic step, Hypothesis summary, Diagnostic progress, Measurement logging, Verified pinouts, Follow-up assistant, PDF export.
+- **Reference Diagram Modal**: Synthetic educational visual, Board/component context, Color-coded connections, Verification disclaimer, Safe error/refusal handling.
+
+---
+
+## Core Features
+
+- Text-assisted & multi-image electronics diagnosis
+- Image-quality assessment & annotated evidence overlays
+- RAG-grounded troubleshooting context (12 manuals)
+- Sequential diagnostic state machine with one-step-at-a-time flow
+- User-reported voltage, current, resistance, continuity, and frequency measurement logging
+- Ranked qualitative hypothesis tracking
+- Verified pinout reference viewer (Arduino, ESP32, HC-SR04, L298N, DHT11)
+- AI-generated educational reference diagrams (`gemini-3.1-flash-image`)
+- Interactive follow-up assistant (`gemini-3.5-flash-lite`)
+- Active project tracking & repair history archive
+- Direct PDF and Markdown report exports
+- Responsive hybrid-neumorphic design with 5 visual themes
+- Firebase Authentication and Cloud Firestore persistence
+- Strict safety guardrails for AC mains, swollen batteries, and burning hazards
+
+---
+
+## Understanding Visual Evidence
+
+- **Original Photo**: A user-provided photograph of the real hardware setup.
+- **Annotated Photo**: The original photograph with AI-generated overlays marking visible components, areas, warnings, or observations.
+- **Reference Diagram**: A separate synthetic educational visual showing an illustrative schematic configuration.
+
+> [!WARNING]
+> A reference diagram is not observed evidence and does not prove that the user’s real circuit is wired correctly. Always verify pinouts, voltage limits, current limits, logic levels, and component variants against official manufacturer documentation before applying power.
+
+---
+
+## Five-Minute Demo
+
+1. Open the [Live Application](https://mecha-fix-ai.vercel.app).
+2. Sign in with Google.
+3. Select the HC-SR04 preset or start a new diagnosis.
+4. Enter the board, component, symptoms, expected behavior, and actual behavior.
+5. Add one or more circuit photographs.
+6. Start the diagnosis.
+7. Review the issue summary and annotated evidence.
+8. Perform the current diagnostic step.
+9. Submit the result or log a multimeter measurement.
+10. Review the updated hypotheses and next step.
+11. Open Verified Pinouts.
+12. Generate an AI educational reference diagram.
+13. Ask a follow-up question in the assistant.
+14. Mark the diagnosis resolved or partially resolved.
+15. Export the report as PDF.
+
+---
+
+## Technical Architecture
+
+```mermaid
+flowchart TD
+    U[User Browser] --> A[Firebase Authentication]
+    U --> N[Next.js Application]
+    N --> R[Protected Route Handlers]
+    R --> T[Firebase ID Token Verification]
+    T --> O[Ownership Validation]
+    O --> G[Gemini Diagnostic Services]
+    O --> K[RAG Knowledge Retrieval]
+    O --> F[Cloud Firestore]
+    G --> S[Structured Diagnostic Output]
+    K --> S
+    S --> F
+    F --> U
+```
+
+### Technology Stack
+- **Framework**: Next.js 15.5.22 (App Router)
+- **UI & Logic**: React 19, TypeScript 5, Tailwind CSS 4
+- **AI Integration**: `@google/genai` 2.13.0 (`gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-image`)
+- **Database & Security**: Firebase JS SDK & Firebase Admin SDK (Cloud Firestore with zero-trust security rules)
+- **Reporting & Storage**: jsPDF, TF-IDF local RAG knowledge base
+
+---
+
+## Safety Notice
+
+MechaFix AI is an educational troubleshooting assistant.
+
+- Disconnect power before rewiring circuits.
+- Never measure resistance or continuity on a powered circuit.
+- Current measurement often requires changing multimeter lead position and placing the meter in series.
+- Do not connect a meter configured for current measurement directly across a voltage source.
+- Avoid mains-voltage (110V-240V AC) troubleshooting.
+- Stop immediately if a battery is swollen, hot, leaking, smoking, or physically damaged.
+- AI output may be incomplete or incorrect. Verify important specifications using official documentation.
+- User-provided measurements are not independently verified by the AI.
+
+---
+
+## Installation & Local Development
+
+Create `.env.local` based on `.env.example`:
 
 ```env
-# Server-side Gemini API Key & Model Configuration
-GEMINI_API_KEY=""
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
 GEMINI_DIAGNOSIS_MODEL="gemini-3.6-flash"
 GEMINI_FAST_MODEL="gemini-3.5-flash-lite"
-GEMINI_EMBEDDING_MODEL="gemini-embedding-2"
 GEMINI_IMAGE_MODEL="gemini-3.1-flash-image"
-ENABLE_REFERENCE_DIAGRAMS="false"
+GEMINI_EMBEDDING_MODEL="gemini-embedding-2"
+ENABLE_REFERENCE_DIAGRAMS="true"
 RAG_MODE="tfidf"
-
-# Application URL
-APP_URL="https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app"
-NEXT_PUBLIC_APP_URL="https://ais-pre-2llyjbkfkybcj254gu23l7-114902420914.asia-southeast1.run.app"
-
-# Public Firebase Configuration (Client)
-NEXT_PUBLIC_FIREBASE_API_KEY=""
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=""
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=""
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=""
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=""
-NEXT_PUBLIC_FIREBASE_APP_ID=""
-
-# Firebase Admin Credentials (Server)
-FIREBASE_SERVICE_ACCOUNT_KEY=""
 ```
 
-Run local development:
+Run validation & start server:
 
 ```bash
-# 1. Install dependencies
 npm ci
-
-# 2. Run static linter
 npm run lint
-
-# 3. Run type checking
 npm run typecheck
-
-# 4. Run automated test suite
 npm run test
-
-# 5. Build production bundle
 npm run build
-
-# 6. Start production server
 npm run start
 ```
 
 ---
 
-## Testing & Verification Results
-- `npm run lint`: **Passed cleanly with 0 errors and 0 warnings**
-- `npm run typecheck`: **Passed cleanly with 0 TypeScript errors**
-- `npm run test`: **Passed, 18 of 18 automated unit and API sanity tests**
-- `npm run build`: **Passed, production build generated successfully**
+## User Guide & Documentation
+
+For the full detailed user guide, screenshot breakdown, and troubleshooting manual index, see [`docs/USER_GUIDE.md`](./docs/USER_GUIDE.md).
 
 ---
 
-## Privacy Policy
-MechaFix AI uses Google Sign-In to identify the user and protect saved diagnostic sessions.
+## License
 
-The application processes:
-- Hardware setup information entered by the user
-- Uploaded circuit images when image-assisted diagnosis is requested (processed in memory for analysis, not stored as raw blobs in Cloud Firestore)
-- AI-generated diagnostic reports
-- Follow-up troubleshooting messages
-- User-reported measurements
-- Diagnosis resolution details
-
-Diagnosis records are stored in Cloud Firestore under the authenticated user's UID.
-
-Third-party services used:
-- Firebase Authentication
-- Cloud Firestore
-- Google Gemini API
-
----
-
-## Limitations & Future Work
-- **Hardware Scope**: Currently optimized for low-voltage DC electronics (<30V), Arduino, ESP32, Raspberry Pi, and standard sensors/motor drivers.
-- **Future Improvements**: Multi-image comparative view, offline circuit diagram exporter, and expanded custom micro-controller pinout definitions.
-
----
-
-## Author & License
-- **Author**: Abdul Wahid Chohan ([GitHub Profile](https://github.com/abdulwahidchohan))
-- **License**: MIT License. See `LICENSE` for details.
+MIT License. Created by [Abdul Wahid Chohan](https://github.com/abdulwahidchohan).

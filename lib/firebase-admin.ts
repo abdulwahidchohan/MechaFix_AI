@@ -1,60 +1,131 @@
-import { initializeApp, getApps, cert, getApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
+import { initializeApp, getApps, cert, getApp, App } from "firebase-admin/app";
+import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { getAuth, Auth } from "firebase-admin/auth";
 
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "hekto-awm";
+export class FirebaseAdminError extends Error {
+  code: string;
+  status: number;
 
-if (!getApps().length) {
-  try {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-      : undefined;
-
-    if (serviceAccount) {
-      initializeApp({
-        credential: cert(serviceAccount),
-        projectId,
-      });
-    } else {
-      initializeApp({
-        projectId,
-      });
-    }
-  } catch (error) {
-    console.error("Firebase Admin Initialization Error", error);
+  constructor(message: string, code = "FIREBASE_ADMIN_UNAVAILABLE", status = 503) {
+    super(message);
+    this.name = "FirebaseAdminError";
+    this.code = code;
+    this.status = status;
   }
 }
 
-const dbName = process.env.FIREBASE_DATABASE_ID || 
-  (projectId === "mystic-core-pgtt6" ? "ai-studio-1ff06b99-a6b1-4864-98f4-4ba50526effb" : undefined);
+function ensureFirebaseAdminApp(): App {
+  if (getApps().length > 0) {
+    return getApp();
+  }
 
-export const adminDb = dbName ? getFirestore(getApp(), dbName) : getFirestore(getApp());
-export const adminAuth = getAuth(getApp());
+  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!rawServiceAccount || !rawServiceAccount.trim()) {
+    throw new FirebaseAdminError(
+      "FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not configured.",
+      "CONFIG_MISSING",
+      503
+    );
+  }
 
-export function getAdminAuth() {
-  return adminAuth;
+  let serviceAccount: any;
+  try {
+    const trimmed = rawServiceAccount.trim();
+    serviceAccount = typeof trimmed === "string" ? JSON.parse(trimmed) : trimmed;
+  } catch (err) {
+    throw new FirebaseAdminError(
+      "FIREBASE_SERVICE_ACCOUNT_KEY contains malformed JSON.",
+      "FIREBASE_ADMIN_UNAVAILABLE",
+      503
+    );
+  }
+
+  if (
+    !serviceAccount ||
+    serviceAccount.type !== "service_account" ||
+    !serviceAccount.project_id ||
+    !serviceAccount.client_email ||
+    !serviceAccount.private_key
+  ) {
+    throw new FirebaseAdminError(
+      "FIREBASE_SERVICE_ACCOUNT_KEY is missing required service account properties.",
+      "FIREBASE_ADMIN_UNAVAILABLE",
+      503
+    );
+  }
+
+  const expectedProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "hekto-awm";
+  if (serviceAccount.project_id !== expectedProjectId) {
+    throw new FirebaseAdminError(
+      `Firebase Admin project_id (${serviceAccount.project_id}) mismatch with expected (${expectedProjectId}).`,
+      "FIREBASE_ADMIN_UNAVAILABLE",
+      503
+    );
+  }
+
+  const formattedPrivateKey = typeof serviceAccount.private_key === "string"
+    ? serviceAccount.private_key.replace(/\\n/g, "\n")
+    : serviceAccount.private_key;
+
+  if (
+    !formattedPrivateKey.includes("-----BEGIN PRIVATE KEY-----") ||
+    !formattedPrivateKey.includes("-----END PRIVATE KEY-----")
+  ) {
+    throw new FirebaseAdminError(
+      "FIREBASE_SERVICE_ACCOUNT_KEY private_key is not a valid PEM key.",
+      "FIREBASE_ADMIN_UNAVAILABLE",
+      503
+    );
+  }
+
+  try {
+    return initializeApp({
+      credential: cert({
+        projectId: serviceAccount.project_id,
+        clientEmail: serviceAccount.client_email,
+        privateKey: formattedPrivateKey,
+      }),
+      projectId: serviceAccount.project_id,
+    });
+  } catch (initErr: any) {
+    throw new FirebaseAdminError(
+      `Firebase Admin initialization failed: ${initErr?.message || initErr}`,
+      "FIREBASE_ADMIN_UNAVAILABLE",
+      503
+    );
+  }
 }
 
-export function getAdminFirestore() {
-  return adminDb;
+export function getAdminAuth(): Auth {
+  const app = ensureFirebaseAdminApp();
+  return getAuth(app);
+}
+
+export function getAdminFirestore(): Firestore {
+  const app = ensureFirebaseAdminApp();
+  const dbName = process.env.FIREBASE_DATABASE_ID;
+  return dbName ? getFirestore(app, dbName) : getFirestore(app);
 }
 
 export async function verifyUserToken(token: string): Promise<string> {
-  if (!token) throw new Error("Missing authorization token");
-  
-  if (token.startsWith("guest_") || token.startsWith("guest-")) {
-    return token.slice(0, 50);
+  if (!token || typeof token !== "string" || !token.trim()) {
+    const err: any = new Error("Missing or empty authorization token.");
+    err.status = 401;
+    err.code = "AUTH_TOKEN_INVALID";
+    throw err;
   }
 
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
+    const auth = getAdminAuth();
+    const decodedToken = await auth.verifyIdToken(token.trim());
     return decodedToken.uid;
   } catch (err: any) {
-    console.warn("Firebase verifyIdToken fallback:", err?.message || err);
-    if (token.length > 10) {
-      return `user_${token.slice(-12)}`;
+    if (err instanceof FirebaseAdminError) {
+      throw err;
     }
-    return "guest_user";
+    const authErr: any = new Error("Invalid or expired authorization token. Please sign in again.");
+    authErr.status = 401;
+    authErr.code = "AUTH_TOKEN_INVALID";
+    throw authErr;
   }
 }
-

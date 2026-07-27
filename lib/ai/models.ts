@@ -59,9 +59,7 @@ export const MODELS = {
   },
 
   get isReferenceDiagramsEnabled(): boolean {
-    const enabledEnv = process.env.ENABLE_REFERENCE_DIAGRAMS;
-    if (enabledEnv === "true" || enabledEnv === "1") return true;
-    return false;
+    return process.env.ENABLE_REFERENCE_DIAGRAMS === "true";
   },
 
   fallbackDiagnosisModel: "gemini-3.5-flash-lite",

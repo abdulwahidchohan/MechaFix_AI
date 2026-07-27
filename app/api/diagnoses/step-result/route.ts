@@ -1,19 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore, FirebaseAdminError } from "@/lib/firebase-admin";
 import { runStepEvaluation } from "@/lib/ai/interactions";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { normalizeDiagnosis, StepResult } from "@/lib/types";
+import { GeminiServiceError } from "@/lib/ai/errors";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization");
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized: Missing Bearer token.", code: "AUTH_TOKEN_INVALID" },
+        { status: 401 }
+      );
     }
 
     const token = authHeader.split("Bearer ")[1];
-    const userId = await verifyUserToken(token);
-
+    let userId: string;
+    try {
+      userId = await verifyUserToken(token);
+    } catch (authErr: any) {
+      return NextResponse.json(
+        { error: authErr?.message || "Unauthorized", code: authErr?.code || "AUTH_TOKEN_INVALID" },
+        { status: authErr?.status || 401 }
+      );
+    }
 
     const body = await req.json();
     const {
@@ -24,11 +37,12 @@ export async function POST(req: NextRequest) {
       observation,
       measurementValues,
       evidenceIds,
+      clientRequestId,
     } = body;
 
     if (!diagnosisId || !stepId || !selectedOption) {
       return NextResponse.json(
-        { error: "Missing required fields: diagnosisId, stepId, and selectedOption." },
+        { error: "Missing required fields: diagnosisId, stepId, and selectedOption.", code: "INVALID_REQUEST" },
         { status: 400 }
       );
     }
@@ -38,7 +52,10 @@ export async function POST(req: NextRequest) {
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
-      return NextResponse.json({ error: "Diagnosis session not found." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Diagnosis session not found.", code: "DIAGNOSIS_NOT_FOUND" },
+        { status: 404 }
+      );
     }
 
     const record = normalizeDiagnosis(docSnap.data() as any);
@@ -46,9 +63,22 @@ export async function POST(req: NextRequest) {
 
     if (!lastStep || lastStep.id !== stepId) {
       return NextResponse.json(
-        { error: "Step ID mismatch or invalid step sequence." },
-        { status: 400 }
+        { error: "Step ID mismatch or stale diagnostic step submission.", code: "STALE_DIAGNOSTIC_STEP" },
+        { status: 409 }
       );
+    }
+
+    // Check for duplicate client submission if clientRequestId provided
+    if (clientRequestId && Array.isArray(record.diagnosticProgress)) {
+      const isDuplicate = record.diagnosticProgress.some(
+        (p: any) => p.result?.clientRequestId === clientRequestId
+      );
+      if (isDuplicate) {
+        return NextResponse.json(
+          { error: "Duplicate diagnostic step submission detected.", code: "DUPLICATE_REQUEST" },
+          { status: 409 }
+        );
+      }
     }
 
     // Step result structure
@@ -63,6 +93,9 @@ export async function POST(req: NextRequest) {
       submittedAt: new Date().toISOString(),
       isUserReported: true,
     };
+    if (clientRequestId) {
+      (newStepResult as any).clientRequestId = clientRequestId;
+    }
 
     // RAG context retrieval for active component/board
     const query = `${record.setup.board} ${record.setup.component} ${lastStep.title} ${selectedOption} ${observation || ""}`;
@@ -83,6 +116,13 @@ export async function POST(req: NextRequest) {
     });
 
     const aiEval = await runStepEvaluation({ prompt: evaluationPrompt });
+
+    if (!aiEval || typeof aiEval !== "object") {
+      return NextResponse.json(
+        { error: "Invalid response from Gemini step evaluation.", code: "AI_RESPONSE_INVALID" },
+        { status: 502 }
+      );
+    }
 
     // Update session data
     const updatedProgress = [
@@ -127,9 +167,24 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Step result processing error:", err);
+
+    if (err instanceof GeminiServiceError) {
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: err.status }
+      );
+    }
+
+    if (err instanceof FirebaseAdminError) {
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: err.status }
+      );
+    }
+
     return NextResponse.json(
-      { error: err?.message || "Failed to submit step result." },
-      { status: 500 }
+      { error: err?.message || "Failed to submit step result.", code: err?.code || "INTERNAL_SERVER_ERROR" },
+      { status: err?.status || 500 }
     );
   }
 }

@@ -21,6 +21,9 @@ pnpm-debug.log*
 # local env files
 .env*.local
 .env
+*-firebase-adminsdk-*.json
+*.key.json
+*.service-account.json
 
 # vercel
 .vercel
@@ -28,3 +31,4 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+

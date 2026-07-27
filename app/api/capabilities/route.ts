@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { MODELS } from "@/lib/ai/models";
 
 export async function GET() {
+  const referenceDiagrams = process.env.ENABLE_REFERENCE_DIAGRAMS === "true";
+
   return NextResponse.json({
-    referenceDiagrams: MODELS.isReferenceDiagramsEnabled,
+    referenceDiagrams,
     imageAnnotations: true,
     multipleImages: true,
     directPdf: true,
-    diagnosisModel: MODELS.diagnosisModel,
-    fastModel: MODELS.fastModel,
   });
 }

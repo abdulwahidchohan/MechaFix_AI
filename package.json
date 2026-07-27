@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node -e 'console.log(\"All automated unit and API sanity tests passed successfully.\")'",
+    "test": "npx tsx --test tests/env-validation.test.ts",
     "clean": "next clean"
   },
   "dependencies": {

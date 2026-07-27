@@ -1,27 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore, FirebaseAdminError } from "@/lib/firebase-admin";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Unauthorized: Missing Bearer token.", code: "AUTH_TOKEN_INVALID" },
+        { status: 401 }
+      );
     }
+
     const token = authHeader.split("Bearer ")[1];
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    const userId = decodedToken.uid;
+    let userId: string;
+    try {
+      userId = await verifyUserToken(token);
+    } catch (authErr: any) {
+      return NextResponse.json(
+        { error: authErr?.message || "Unauthorized", code: authErr?.code || "AUTH_TOKEN_INVALID" },
+        { status: authErr?.status || 401 }
+      );
+    }
 
     const { diagnosisId, measurement } = await req.json();
 
     if (!diagnosisId || typeof diagnosisId !== "string") {
-      return NextResponse.json({ error: "Missing diagnosisId" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required diagnosisId field.", code: "INVALID_REQUEST" },
+        { status: 400 }
+      );
     }
 
     if (!measurement || typeof measurement !== "object") {
-      return NextResponse.json({ error: "Missing measurement object" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required measurement object.", code: "INVALID_REQUEST" },
+        { status: 400 }
+      );
     }
 
-    const docRef = adminDb
+    const db = getAdminFirestore();
+    const docRef = db
       .collection("users")
       .doc(userId)
       .collection("diagnoses")
@@ -29,7 +49,10 @@ export async function POST(req: NextRequest) {
 
     const docSnap = await docRef.get();
     if (!docSnap.exists) {
-      return NextResponse.json({ error: "Diagnosis not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Diagnosis record not found or access denied.", code: "DIAGNOSIS_NOT_FOUND" },
+        { status: 404 }
+      );
     }
 
     const currentMeasurements: any[] = docSnap.data()?.measurements || [];
@@ -47,7 +70,12 @@ export async function POST(req: NextRequest) {
     );
 
     if (existingDup) {
-      return NextResponse.json({ success: true, measurement: existingDup, measurements: currentMeasurements, isDuplicate: true });
+      return NextResponse.json({
+        success: true,
+        measurement: existingDup,
+        measurements: currentMeasurements,
+        isDuplicate: true,
+      });
     }
 
     const newMeasurement = {
@@ -65,15 +93,27 @@ export async function POST(req: NextRequest) {
 
     await docRef.update({
       measurements: updatedMeasurements,
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     });
 
-    return NextResponse.json({ success: true, measurement: newMeasurement, measurements: updatedMeasurements });
+    return NextResponse.json({
+      success: true,
+      measurement: newMeasurement,
+      measurements: updatedMeasurements,
+    });
   } catch (error: any) {
     console.error("Save Measurement Error:", error);
+
+    if (error instanceof FirebaseAdminError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
+
     return NextResponse.json(
-      { error: error.message || "Failed to save measurement" },
-      { status: 500 }
+      { error: error.message || "Failed to save measurement.", code: error?.code || "INTERNAL_SERVER_ERROR" },
+      { status: error?.status || 500 }
     );
   }
 }

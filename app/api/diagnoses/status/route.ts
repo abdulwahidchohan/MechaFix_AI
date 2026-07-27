@@ -1,20 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserToken, adminDb } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore, FirebaseAdminError } from "@/lib/firebase-admin";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Unauthorized: Missing Bearer token.", code: "AUTH_TOKEN_INVALID" },
+        { status: 401 }
+      );
     }
-    const token = authHeader.split("Bearer ")[1];
-    const userId = await verifyUserToken(token);
 
+    const token = authHeader.split("Bearer ")[1];
+    let userId: string;
+    try {
+      userId = await verifyUserToken(token);
+    } catch (authErr: any) {
+      return NextResponse.json(
+        { error: authErr?.message || "Unauthorized", code: authErr?.code || "AUTH_TOKEN_INVALID" },
+        { status: authErr?.status || 401 }
+      );
+    }
 
     const { diagnosisId, status: rawStatus, rootCause: rawRootCause, actionTaken: rawActionTaken, finalNote: rawFinalNote } = await req.json();
 
     if (!diagnosisId || typeof diagnosisId !== "string") {
-      return NextResponse.json({ error: "Missing or invalid diagnosisId" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing or invalid diagnosisId field.", code: "INVALID_REQUEST" },
+        { status: 400 }
+      );
     }
 
     const validStatuses = ["in_progress", "resolved", "partially_resolved"];
@@ -25,7 +41,8 @@ export async function POST(req: NextRequest) {
     const actionTaken = sanitize(rawActionTaken, 1000);
     const finalNote = sanitize(rawFinalNote, 1000);
 
-    const docRef = adminDb
+    const db = getAdminFirestore();
+    const docRef = db
       .collection("users")
       .doc(userId)
       .collection("diagnoses")
@@ -33,12 +50,15 @@ export async function POST(req: NextRequest) {
 
     const docSnap = await docRef.get();
     if (!docSnap.exists) {
-      return NextResponse.json({ error: "Diagnosis not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Diagnosis record not found or access denied.", code: "DIAGNOSIS_NOT_FOUND" },
+        { status: 404 }
+      );
     }
 
     const updateData: any = {
       status: status || "resolved",
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     };
 
     if (status === "resolved" || status === "partially_resolved") {
@@ -46,9 +66,9 @@ export async function POST(req: NextRequest) {
         rootCause: rootCause || "Identified component failure or wiring issue",
         actionTaken: actionTaken || "Followed troubleshooting steps",
         finalNote: finalNote || "",
-        resolvedAt: new Date(),
+        resolvedAt: new Date().toISOString(),
       };
-      updateData.resolvedAt = new Date();
+      updateData.resolvedAt = new Date().toISOString();
     }
 
     await docRef.update(updateData);
@@ -56,9 +76,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, diagnosisId, status });
   } catch (error: any) {
     console.error("Status Update Error:", error);
+
+    if (error instanceof FirebaseAdminError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
+
     return NextResponse.json(
-      { error: error.message || "Failed to update diagnosis status" },
-      { status: 500 }
+      { error: error.message || "Failed to update diagnosis status.", code: error?.code || "INTERNAL_SERVER_ERROR" },
+      { status: error?.status || 500 }
     );
   }
 }

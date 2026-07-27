@@ -1,19 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
+import { verifyUserToken, getAdminFirestore, FirebaseAdminError } from "@/lib/firebase-admin";
 import { runGeminiAnalysis, EvidenceInputPart } from "@/lib/ai/interactions";
 import { buildAnalysisPrompt } from "@/lib/ai/prompts";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { EvidenceItem, normalizeDiagnosis } from "@/lib/types";
+import { GeminiServiceError } from "@/lib/ai/errors";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Unauthorized: Missing Bearer token.", code: "AUTH_TOKEN_INVALID" },
+        { status: 401 }
+      );
     }
-    const token = authHeader.split("Bearer ")[1];
-    const userId = await verifyUserToken(token);
 
+    const token = authHeader.split("Bearer ")[1];
+    let userId: string;
+    try {
+      userId = await verifyUserToken(token);
+    } catch (authErr: any) {
+      return NextResponse.json(
+        { error: authErr?.message || "Unauthorized", code: authErr?.code || "AUTH_TOKEN_INVALID" },
+        { status: authErr?.status || 401 }
+      );
+    }
 
     const body = await req.json();
     const sanitize = (val: any, maxLen: number = 500) =>
@@ -88,6 +102,13 @@ export async function POST(req: NextRequest) {
       images: geminiImages,
     });
 
+    if (!rawAiOutput || typeof rawAiOutput !== "object") {
+      return NextResponse.json(
+        { error: "Invalid response received from Gemini analysis.", code: "AI_RESPONSE_INVALID" },
+        { status: 502 }
+      );
+    }
+
     // Structure Evidence Items
     const evidenceList: EvidenceItem[] = imagesPayload.map((img, idx) => ({
       id: `ev-${idx + 1}`,
@@ -114,7 +135,7 @@ export async function POST(req: NextRequest) {
       potential_causes: (rawAiOutput.activeHypotheses || []).map((h: any) => h.title),
       troubleshooting_steps: rawAiOutput.currentStep
         ? [rawAiOutput.currentStep.instruction]
-        : ["Disconnect power and verify board wiring."],
+        : ["Inspect wiring and verify board power connections."],
       safetyLevel: rawAiOutput.safetyLevel || "CAUTION",
       safetyWarning: rawAiOutput.safetyWarning || "",
       imageUsable: rawAiOutput.imageUsable !== false,
@@ -139,7 +160,7 @@ export async function POST(req: NextRequest) {
       evidenceList,
       activeHypotheses: (rawAiOutput.activeHypotheses || []).map((h: any, idx: number) => ({
         id: h.id || `hyp-${idx + 1}`,
-        title: h.title || "Hardware Mismatch",
+        title: h.title || "Hardware Cause Under Investigation",
         explanation: h.explanation || "Suspected cause based on initial symptoms.",
         state: h.state || "suspected",
         evidenceFor: h.evidenceFor || [],
@@ -149,7 +170,7 @@ export async function POST(req: NextRequest) {
         ? {
             id: rawAiOutput.currentStep.id || "step-1",
             sequence: rawAiOutput.currentStep.sequence || 1,
-            title: rawAiOutput.currentStep.title || "Diagnostic Step 1",
+            title: rawAiOutput.currentStep.title || "Initial Verification",
             instruction: rawAiOutput.currentStep.instruction || "Inspect power rails.",
             reason: rawAiOutput.currentStep.reason || "Baseline verification.",
             safetyNote: rawAiOutput.currentStep.safetyNote || "Ensure power is disconnected.",
@@ -181,10 +202,25 @@ export async function POST(req: NextRequest) {
       record: createdRecord,
     });
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini Analyze Route Error:", error);
+
+    if (error instanceof GeminiServiceError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
+
+    if (error instanceof FirebaseAdminError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
+
     return NextResponse.json(
-      { error: error?.message || "Failed to run diagnosis." },
-      { status: 500 }
+      { error: error?.message || "Failed to run diagnosis.", code: error?.code || "INTERNAL_SERVER_ERROR" },
+      { status: error?.status || 500 }
     );
   }
 }

@@ -67,46 +67,66 @@ export async function POST(req: NextRequest) {
     const client = getGeminiClient();
     let generatedImageBase64 = "";
 
-    try {
-      const response = await client.models.generateContent({
-        model: MODELS.imageModel,
-        contents: {
-          parts: [{ text: promptText }],
-        },
-        config: {
-          imageConfig: {
+    const selectedImageModel = MODELS.imageModel || "imagen-3.0-generate-002";
+
+    // Attempt 1: Official generateImages API for Imagen models
+    if (typeof (client.models as any).generateImages === "function") {
+      try {
+        const response = await (client.models as any).generateImages({
+          model: selectedImageModel.startsWith("imagen") ? selectedImageModel : "imagen-3.0-generate-002",
+          prompt: promptText,
+          config: {
+            numberOfImages: 1,
+            outputMimeType: "image/png",
             aspectRatio: "4:3",
           },
-        },
-      });
+        });
 
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData?.data) {
-            const mime = part.inlineData.mimeType || "image/png";
-            generatedImageBase64 = `data:${mime};base64,${part.inlineData.data}`;
-            break;
+        const img = response?.generatedImages?.[0]?.image;
+        if (img?.imageBytes) {
+          generatedImageBase64 = `data:image/png;base64,${img.imageBytes}`;
+        }
+      } catch (genImgErr: any) {
+        console.warn("client.models.generateImages failed, trying generateContent fallback:", genImgErr?.message || genImgErr);
+      }
+    }
+
+    // Attempt 2: generateContent API fallback
+    if (!generatedImageBase64) {
+      try {
+        const response = await client.models.generateContent({
+          model: selectedImageModel,
+          contents: {
+            parts: [{ text: promptText }],
+          },
+          config: {
+            imageConfig: {
+              aspectRatio: "4:3",
+            },
+          },
+        });
+
+        if (response.candidates?.[0]?.content?.parts) {
+          for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData?.data) {
+              const mime = part.inlineData.mimeType || "image/png";
+              generatedImageBase64 = `data:${mime};base64,${part.inlineData.data}`;
+              break;
+            }
           }
         }
+      } catch (genContentErr: any) {
+        console.error("client.models.generateContent image generation failed:", genContentErr?.message || genContentErr);
       }
-    } catch (imgErr: any) {
-      console.error("Gemini Reference Image generation failed:", imgErr?.message || imgErr);
+    }
+
+    if (!generatedImageBase64) {
       return NextResponse.json(
         {
           error: "Reference diagram generation failed via Gemini Image model.",
           code: "GEMINI_SERVICE_UNAVAILABLE",
         },
         { status: 503 }
-      );
-    }
-
-    if (!generatedImageBase64) {
-      return NextResponse.json(
-        {
-          error: "Gemini Image model returned empty image payload.",
-          code: "AI_RESPONSE_INVALID",
-        },
-        { status: 502 }
       );
     }
 

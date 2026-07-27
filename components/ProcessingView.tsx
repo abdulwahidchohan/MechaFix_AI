@@ -9,7 +9,6 @@ export default function ProcessingView({ imageFile }: { imageFile: File | null }
   useEffect(() => {
     if (imageFile) {
       const url = URL.createObjectURL(imageFile);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setImageUrl(url);
       return () => URL.revokeObjectURL(url);
     }

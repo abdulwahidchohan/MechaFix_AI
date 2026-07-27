@@ -1,82 +1,84 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserToken, getAdminFirestore, FirebaseAdminError } from "@/lib/firebase-admin";
+import { getAdminFirestore, verifyUserToken, FirebaseAdminError } from "@/lib/firebase-admin";
 import { runGeminiAnalysis, EvidenceInputPart } from "@/lib/ai/interactions";
 import { buildAnalysisPrompt } from "@/lib/ai/prompts";
 import { retrieveContext } from "@/lib/rag/retrieve";
-import { EvidenceItem, normalizeDiagnosis } from "@/lib/types";
 import { parseGeminiError } from "@/lib/ai/errors";
+import { EvidenceItem } from "@/lib/types";
 
-export const runtime = "nodejs";
+function validateImagesPayload(images: any[]): any[] {
+  const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+  if (images.length > 5) {
+    throw new Error("Maximum 5 evidence images allowed per diagnosis.");
+  }
+  return images.map((img, idx) => {
+    if (!img || typeof img !== "object") {
+      throw new Error(`Image item at index ${idx} is invalid.`);
+    }
+    const mimeType = img.mimeType || "image/jpeg";
+    if (!allowedTypes.includes(mimeType)) {
+      throw new Error(`Unsupported MIME type: ${mimeType}. Allowed: JPG, PNG, WebP.`);
+    }
+    const data = img.data || "";
+    if (!data.trim()) {
+      throw new Error(`Image item at index ${idx} contains empty data.`);
+    }
+    return {
+      mimeType,
+      data,
+      evidenceType: img.evidenceType || "photo",
+    };
+  });
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { error: "Unauthorized: Missing Bearer token.", code: "AUTH_TOKEN_INVALID" },
-        { status: 401 }
-      );
-    }
+    const authHeader = req.headers.get("authorization") || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
 
-    const token = authHeader.split("Bearer ")[1];
     let userId: string;
     try {
       userId = await verifyUserToken(token);
     } catch (authErr: any) {
+      if (authErr instanceof FirebaseAdminError) {
+        return NextResponse.json(
+          { error: authErr.message, code: authErr.code },
+          { status: authErr.status }
+        );
+      }
       return NextResponse.json(
-        { error: authErr?.message || "Unauthorized", code: authErr?.code || "AUTH_TOKEN_INVALID" },
-        { status: authErr?.status || 401 }
+        { error: "Unauthorized: Invalid or missing Bearer token.", code: "AUTH_TOKEN_INVALID" },
+        { status: 401 }
       );
     }
 
     const body = await req.json();
-    const sanitize = (val: any, maxLen: number = 500) =>
-      typeof val === "string" ? val.trim().slice(0, maxLen) : "";
+    const {
+      board = "Arduino",
+      component = "Circuit",
+      powerSource = "USB 5V",
+      problemCategory = "General Circuit Analysis",
+      expectedBehavior = "",
+      actualBehavior = "",
+      errorMessage = "",
+      notes = "",
+      images = [],
+      evidenceType = "photo",
+    } = body;
 
-    const board = sanitize(body.board, 150) || "Unspecified Board";
-    const component = sanitize(body.component, 150) || "Unspecified Component";
-    const powerSource = sanitize(body.powerSource, 100) || "USB";
-    const problemCategory = sanitize(body.problemCategory, 150) || "General Hardware Issue";
-    const expectedBehavior = sanitize(body.expectedBehavior, 1000) || "Operates as expected";
-    const actualBehavior = sanitize(body.actualBehavior, 1000) || "Malfunctioning";
-    const errorMessage = sanitize(body.errorMessage, 500);
-    const notes = sanitize(body.notes, 1000);
-    const evidenceType = sanitize(body.evidenceType, 50) || "photo";
-
-    // Handle single image or multiple images (up to 5)
-    const imagesPayload: Array<{
-      data: string;
-      mimeType: string;
-      evidenceType?: "photo" | "schematic" | "measurement_display" | "close_up_damage" | "other";
-    }> = [];
-
-    const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-
-    if (Array.isArray(body.images) && body.images.length > 0) {
-      for (const img of body.images.slice(0, 5)) {
-        if (typeof img.data === "string" && img.data.length <= 7.5 * 1024 * 1024) {
-          const mime = (img.mimeType || "image/jpeg").toLowerCase();
-          if (allowedMimes.includes(mime)) {
-            imagesPayload.push({
-              data: img.data,
-              mimeType: mime === "image/jpg" ? "image/jpeg" : mime,
-              evidenceType: img.evidenceType || "photo",
-            });
-          }
-        }
-      }
-    } else if (typeof body.imageBase64 === "string" && body.imageBase64.length <= 7.5 * 1024 * 1024) {
-      const mime = (body.mimeType || "image/jpeg").toLowerCase();
-      if (allowedMimes.includes(mime)) {
-        imagesPayload.push({
-          data: body.imageBase64,
-          mimeType: mime === "image/jpg" ? "image/jpeg" : mime,
-          evidenceType: "photo",
-        });
+    // Validate provided images
+    let imagesPayload: any[] = [];
+    if (Array.isArray(images) && images.length > 0) {
+      try {
+        imagesPayload = validateImagesPayload(images);
+      } catch (valErr: any) {
+        return NextResponse.json(
+          { error: valErr.message || "Invalid image payload.", code: "INVALID_IMAGE_PAYLOAD" },
+          { status: 400 }
+        );
       }
     }
 
-    // Convert to Gemini parts
     const geminiImages: EvidenceInputPart[] = imagesPayload.map((img) => ({
       inlineData: {
         mimeType: img.mimeType,
@@ -152,8 +154,8 @@ export async function POST(req: NextRequest) {
       originalInput: {
         expectedBehavior,
         actualBehavior,
-        errorMessage,
-        notes,
+        errorMessage: errorMessage || "",
+        notes: notes || "",
         evidenceType: evidenceList.length > 0 ? evidenceType : "text_only",
       },
       result: resultData,
@@ -178,7 +180,7 @@ export async function POST(req: NextRequest) {
             resultOptions: rawAiOutput.currentStep.resultOptions || ["Passed", "Failed", "Not Sure"],
             requiresPowerDisconnected: rawAiOutput.currentStep.requiresPowerDisconnected !== false,
             requiresMeasurement: !!rawAiOutput.currentStep.requiresMeasurement,
-            requestedMeasurementType: rawAiOutput.currentStep.requestedMeasurementType,
+            requestedMeasurementType: rawAiOutput.currentStep.requestedMeasurementType || null,
             status: "current",
           }
         : null,
@@ -193,7 +195,7 @@ export async function POST(req: NextRequest) {
       .collection("diagnoses")
       .add(docData);
 
-    const createdRecord = normalizeDiagnosis({ id: docRef.id, ...docData });
+    const createdRecord = { id: docRef.id, ...docData };
 
     return NextResponse.json({
       success: true,

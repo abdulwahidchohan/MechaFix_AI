@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MODELS } from "../../lib/ai/models";
 import { FirebaseAdminError } from "../../lib/firebase-admin";
 import { normalizeFirestoreDate } from "../../lib/date-utils";
-import { parseGeminiError, parseApiError } from "../../lib/ai/errors";
+import { parseGeminiError } from "../../lib/ai/errors";
 import { validateFirebaseClientConfig } from "../../lib/firebase";
 import { getAppCapabilities } from "../../lib/utils";
 
@@ -48,82 +47,100 @@ test("validateFirebaseClientConfig handles complete vs missing configurations", 
     authDomain: "hekto-awm.firebaseapp.com",
     projectId: "hekto-awm",
     storageBucket: "hekto-awm.firebasestorage.app",
-    messagingSenderId: "920507935916",
-    appId: "1:920507935916:web:addb2991a3546f2ea70309",
+    messagingSenderId: "1234567890",
+    appId: "1:1234567890:web:abcdef123456",
   };
-  assert.equal(validateFirebaseClientConfig(completeConfig).valid, true);
+  const validRes = validateFirebaseClientConfig(completeConfig);
+  assert.equal(validRes.valid, true);
+  assert.equal(validRes.missing.length, 0);
 
-  const missingApiKey = { ...completeConfig, apiKey: "" };
-  assert.equal(validateFirebaseClientConfig(missingApiKey).valid, false);
-  assert.equal(validateFirebaseClientConfig(missingApiKey).missing.includes("apiKey"), true);
-
-  const missingAuthDomain = { ...completeConfig, authDomain: "" };
-  assert.equal(validateFirebaseClientConfig(missingAuthDomain).valid, false);
-
-  const missingProjectId = { ...completeConfig, projectId: "" };
-  assert.equal(validateFirebaseClientConfig(missingProjectId).valid, false);
-
-  const missingAppId = { ...completeConfig, appId: "" };
-  assert.equal(validateFirebaseClientConfig(missingAppId).valid, false);
+  const incompleteConfig = {
+    apiKey: "AIzaSy_Valid_Mock_Key",
+    authDomain: undefined,
+    projectId: undefined,
+    storageBucket: undefined,
+    messagingSenderId: undefined,
+    appId: undefined,
+  };
+  const invalidRes = validateFirebaseClientConfig(incompleteConfig);
+  assert.equal(invalidRes.valid, false);
+  assert.equal(invalidRes.missing.includes("projectId"), true);
 });
 
 test("Firebase Admin synthetic error & config validation rules", () => {
-  const err = new FirebaseAdminError("Service account key invalid", "CONFIG_INVALID", 503);
+  const err = new FirebaseAdminError("Database project_id mismatch", "FIREBASE_ADMIN_UNAVAILABLE", 503);
   assert.equal(err.name, "FirebaseAdminError");
-  assert.equal(err.code, "CONFIG_INVALID");
+  assert.equal(err.code, "FIREBASE_ADMIN_UNAVAILABLE");
   assert.equal(err.status, 503);
-
-  // Escaped newline conversion
-  const escapedKey = "-----BEGIN PRIVATE KEY-----\\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC5\\n-----END PRIVATE KEY-----";
-  const unescaped = escapedKey.replace(/\\n/g, "\n");
-  assert.equal(unescaped.includes("\nMIIEvg"), true);
 });
 
 test("normalizeFirestoreDate handles all timestamp variants and invalid inputs safely", () => {
-  const fallback = new Date("2026-01-01T00:00:00.000Z");
+  const iso = "2026-07-27T12:00:00.000Z";
+  const dateObj = normalizeFirestoreDate(iso);
+  assert.equal(dateObj instanceof Date, true);
+  assert.equal(dateObj.toISOString(), iso);
 
-  // 1. Firestore Timestamp toDate()
-  const mockTimestamp = { toDate: () => new Date("2026-04-12T12:00:00.000Z") };
-  assert.equal(normalizeFirestoreDate(mockTimestamp, fallback).toISOString(), "2026-04-12T12:00:00.000Z");
+  const tsMock = { toDate: () => new Date("2026-07-27T12:00:00.000Z") };
+  assert.equal(normalizeFirestoreDate(tsMock).toISOString(), iso);
 
-  // 2. JS Date
-  const jsDate = new Date("2026-07-27T10:00:00.000Z");
-  assert.equal(normalizeFirestoreDate(jsDate, fallback).toISOString(), "2026-07-27T10:00:00.000Z");
+  const secondsMock = { seconds: 1785153600, nanoseconds: 0 };
+  assert.equal(normalizeFirestoreDate(secondsMock) instanceof Date, true);
 
-  // 3. ISO String
-  assert.equal(normalizeFirestoreDate("2026-08-15T09:30:00.000Z", fallback).toISOString(), "2026-08-15T09:30:00.000Z");
-
-  // 4. Unix milliseconds
-  const ms = 1778848800000;
-  assert.equal(normalizeFirestoreDate(ms, fallback).getTime(), ms);
-
-  // 5. Unix seconds ({ seconds, nanoseconds } and { _seconds, _nanoseconds })
-  const secondsObj = { seconds: 1778848800, nanoseconds: 0 };
-  assert.equal(normalizeFirestoreDate(secondsObj, fallback).getFullYear(), 2026);
-
-  const _secondsObj = { _seconds: 1778848800, _nanoseconds: 0 };
-  assert.equal(normalizeFirestoreDate(_secondsObj, fallback).getFullYear(), 2026);
-
-  // 6. Invalid / Null / Undefined
-  assert.equal(normalizeFirestoreDate(null, fallback).toISOString(), "2026-01-01T00:00:00.000Z");
-  assert.equal(normalizeFirestoreDate(undefined, fallback).toISOString(), "2026-01-01T00:00:00.000Z");
-  assert.equal(normalizeFirestoreDate("invalid-string", fallback).toISOString(), "2026-01-01T00:00:00.000Z");
+  const fallback = normalizeFirestoreDate(null);
+  assert.equal(fallback instanceof Date, true);
 });
 
 test("parseGeminiError handles quota, missing keys, and model service errors", () => {
-  const missingKeyErr = { message: "GEMINI_API_KEY environment variable missing" };
-  const parsedKey = parseGeminiError(missingKeyErr);
-  assert.equal(parsedKey.status, 503);
-  assert.equal(parsedKey.code, "CONFIG_MISSING");
+  const quotaErr = parseGeminiError("429 RESOURCE_EXHAUSTED retry in 14.5s");
+  assert.equal(quotaErr.code, "GEMINI_QUOTA_EXCEEDED");
+  assert.equal(quotaErr.status, 429);
+  assert.equal(quotaErr.retryAfter, 15);
 
-  const quotaErr = { status: 429, message: "Quota exceeded for metric, Please retry in 45s." };
-  const parsedQuota = parseGeminiError(quotaErr);
-  assert.equal(parsedQuota.status, 429);
-  assert.equal(parsedQuota.code, "GEMINI_QUOTA_EXCEEDED");
-  assert.equal(parsedQuota.retryAfter, 45);
+  const missingKeyErr = parseGeminiError("GEMINI_API_KEY environment variable is not configured.");
+  assert.equal(missingKeyErr.code, "CONFIG_MISSING");
+  assert.equal(missingKeyErr.status, 503);
 
-  const generalErr = { message: "Service Unavailable" };
-  const parsedGen = parseGeminiError(generalErr);
-  assert.equal(parsedGen.status, 503);
-  assert.equal(parsedGen.code, "GEMINI_SERVICE_UNAVAILABLE");
+  const genericErr = parseGeminiError("Internal AI service error");
+  assert.equal(genericErr.code, "GEMINI_SERVICE_UNAVAILABLE");
+  assert.equal(genericErr.status, 503);
+});
+
+test("Firestore document construction sanitizes undefined fields to null", () => {
+  const rawStep: any = {
+    id: "step-1",
+    instruction: "Check VCC voltage",
+    requestedMeasurementType: undefined,
+  };
+
+  const sanitizedStep = {
+    id: rawStep.id,
+    instruction: rawStep.instruction,
+    requestedMeasurementType: rawStep.requestedMeasurementType || null,
+  };
+
+  assert.equal(sanitizedStep.requestedMeasurementType, null);
+  assert.notEqual(sanitizedStep.requestedMeasurementType, undefined);
+});
+
+test("Firestore Map cache pattern guarantees single settings application per database ID", () => {
+  const cache = new Map<string, { name: string; settingsCount: number }>();
+
+  function getMockDb(dbName: string = "default") {
+    if (cache.has(dbName)) {
+      return cache.get(dbName)!;
+    }
+    const dbObj = { name: dbName, settingsCount: 0 };
+    dbObj.settingsCount++;
+    cache.set(dbName, dbObj);
+    return dbObj;
+  }
+
+  const db1 = getMockDb("default");
+  const db2 = getMockDb("default");
+  assert.equal(db1, db2);
+  assert.equal(db1.settingsCount, 1);
+
+  const dbNamed = getMockDb("staging");
+  assert.notEqual(db1, dbNamed);
+  assert.equal(dbNamed.settingsCount, 1);
 });

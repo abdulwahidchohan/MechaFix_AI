@@ -153,7 +153,7 @@ export default function MeasurementDrawer({
             </div>
             <button
               onClick={onClose}
-              className="text-text-muted hover:text-text p-1.5 rounded-lg hover:bg-surface-sunken"
+              className="text-text-muted hover:text-text p-2 rounded-lg hover:bg-surface-sunken min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer"
               aria-label="Close drawer"
             >
               <span className="material-symbols-outlined text-xl">close</span>
@@ -195,7 +195,7 @@ export default function MeasurementDrawer({
                     }`}
                   >
                     <span className="material-symbols-outlined text-base">
-                      {t === "Voltage" ? "bolt" : t === "Resistance" ? "resistor" : t === "Current" ? "electric_meter" : t === "Signal/PWM" ? "waves" : t === "I2C/SPI Scan" ? "developer_board" : "cable"}
+                      {t === "Voltage" ? "bolt" : t === "Resistance" ? "tune" : t === "Current" ? "electric_meter" : t === "Signal/PWM" ? "waves" : t === "I2C/SPI Scan" ? "developer_board" : "cable"}
                     </span>
                     <span>{t}</span>
                   </button>

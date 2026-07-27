@@ -109,7 +109,7 @@ export default function ResolveDiagnosisModal({
           </div>
           <button
             onClick={onClose}
-            className="text-text-muted hover:text-text p-2 rounded-lg hover:bg-surface-sunken transition-colors"
+            className="text-text-muted hover:text-text p-2 rounded-lg hover:bg-surface-sunken transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer"
             aria-label="Close modal"
           >
             <span className="material-symbols-outlined text-xl">close</span>
@@ -230,14 +230,14 @@ export default function ResolveDiagnosisModal({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2.5 rounded-xl bg-surface-sunken text-text font-sans font-semibold text-xs border border-border hover:bg-border/30 transition-colors"
+              className="px-4 py-2.5 rounded-xl bg-surface-sunken text-text font-sans font-semibold text-xs border border-border hover:bg-border/30 transition-colors min-h-[44px] cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`px-5 py-2.5 rounded-xl font-sans font-semibold text-xs text-white shadow-neu-raised transition-all flex items-center gap-1.5 ${
+              className={`px-5 py-2.5 rounded-xl font-sans font-semibold text-xs text-white shadow-neu-raised transition-all flex items-center gap-1.5 min-h-[44px] cursor-pointer ${
                 targetStatus === "in_progress"
                   ? "bg-primary hover:bg-primary-hover"
                   : targetStatus === "partially_resolved"

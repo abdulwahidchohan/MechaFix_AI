@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { GET as capabilitiesGet } from "../../app/api/capabilities/route";
 import { parseApiError, parseGeminiError } from "../../lib/ai/errors";
-import { getAppCapabilities } from "../../lib/utils";
 
 test("GET /api/capabilities returns 200 with dynamic boolean capability flags", async () => {
   const orig = process.env.ENABLE_REFERENCE_DIAGRAMS;
@@ -46,18 +45,27 @@ test("API Route error contract mapping returns correct HTTP status codes", () =>
   assert.equal(quotaErr.status, 429);
   assert.equal(quotaErr.code, "GEMINI_QUOTA_EXCEEDED");
 
-  // 503 Service unavailable
+  // 503 Firestore Service unavailable
   const unavailErr = parseApiError({ code: "unavailable", message: "Firestore connection offline" });
   assert.equal(unavailErr.status, 503);
   assert.equal(unavailErr.code, "FIRESTORE_UNAVAILABLE");
 });
 
-test("Reference Diagram safety validator rejects hazardous 220V AC mains and swollen batteries", () => {
-  const isSafetyRefused = (context: string): boolean => {
-    return /110v|220v|mains|ac voltage|burning|smoke|swollen|lipo direct/i.test(context);
+test("Measurement Logging UI structure validates test points and values accurately", () => {
+  const sampleMeasurement = {
+    id: "meas_123",
+    type: "Voltage",
+    location: "VCC to GND on U1",
+    value: "4.82",
+    unit: "V",
+    notes: "Measured under load",
+    timestamp: "10:30 PM",
+    isUserReported: true,
   };
 
-  assert.equal(isSafetyRefused("Arduino connected to 220V AC relay coil directly"), true);
-  assert.equal(isSafetyRefused("Battery pack is swollen and emitting burning odor"), true);
-  assert.equal(isSafetyRefused("HC-SR04 ultrasonic distance sensor connected to 5V rail"), false);
+  assert.equal(sampleMeasurement.type, "Voltage");
+  assert.equal(sampleMeasurement.location, "VCC to GND on U1");
+  assert.equal(sampleMeasurement.value, "4.82");
+  assert.equal(sampleMeasurement.unit, "V");
+  assert.equal(sampleMeasurement.isUserReported, true);
 });

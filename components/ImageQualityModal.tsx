@@ -55,8 +55,8 @@ export default function ImageQualityModal({
           </div>
           <button
             onClick={onClose}
-            className="text-text-muted hover:text-text p-1 rounded-lg hover:bg-surface-sunken"
-            aria-label="Close"
+            className="text-text-muted hover:text-text p-1.5 rounded-lg hover:bg-surface-sunken min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer"
+            aria-label="Close image quality modal"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>

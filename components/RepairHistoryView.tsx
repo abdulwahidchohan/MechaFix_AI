@@ -240,7 +240,7 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
                 <button
                   type="button"
                   onClick={() => handleReopen(item.id)}
-                  className="px-4 py-2 rounded-lg bg-surface-sunken text-text-muted hover:text-text hover:bg-border/30 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-lg bg-surface-sunken text-text-muted hover:text-text hover:bg-border/30 text-xs font-semibold transition-colors flex items-center gap-1.5 min-h-[44px] cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-sm">history</span>
                   Reopen Session
@@ -250,7 +250,7 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
                   <button
                     type="button"
                     onClick={() => onViewReport(item)}
-                    className="px-4 py-2 rounded-lg bg-primary text-surface font-sans font-semibold text-xs shadow-neu-raised hover:bg-primary-hover transition-all flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-lg bg-primary text-surface font-sans font-semibold text-xs shadow-neu-raised hover:bg-primary-hover transition-all flex items-center gap-1.5 min-h-[44px] cursor-pointer"
                   >
                     View Report
                     <span className="material-symbols-outlined text-sm">arrow_forward</span>

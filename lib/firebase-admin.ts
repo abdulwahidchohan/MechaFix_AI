@@ -1,4 +1,4 @@
-import { initializeApp, getApps, cert, getApp, App } from "firebase-admin/app";
+import { initializeApp, getApps, getApp, cert, App } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 import { getAuth, Auth } from "firebase-admin/auth";
 
@@ -101,10 +101,26 @@ export function getAdminAuth(): Auth {
   return getAuth(app);
 }
 
+const firestoreCache = new Map<string, Firestore>();
+
 export function getAdminFirestore(): Firestore {
   const app = ensureFirebaseAdminApp();
-  const dbName = process.env.FIREBASE_DATABASE_ID;
-  return dbName ? getFirestore(app, dbName) : getFirestore(app);
+  const dbName = (process.env.FIREBASE_DATABASE_ID || "default").trim();
+
+  if (firestoreCache.has(dbName)) {
+    return firestoreCache.get(dbName)!;
+  }
+
+  const db = dbName !== "default" ? getFirestore(app, dbName) : getFirestore(app);
+  try {
+    db.settings({ ignoreUndefinedProperties: true });
+  } catch (err: any) {
+    if (!err?.message?.includes("already been initialized")) {
+      console.warn("Firestore settings notice:", err?.message || err);
+    }
+  }
+  firestoreCache.set(dbName, db);
+  return db;
 }
 
 export async function verifyUserToken(token: string): Promise<string> {

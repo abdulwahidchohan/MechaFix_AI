@@ -112,7 +112,7 @@ export default function ActiveProjectsView({ onViewReport }: { onViewReport: (re
               </div>
               <button 
                 onClick={() => onViewReport(diag)}
-                className="w-full py-2.5 rounded-lg bg-surface-sunken text-primary font-sans font-semibold shadow-neu-pressed hover:bg-surface-dim transition-colors flex items-center justify-center gap-2 group-hover:text-primary-hover"
+                className="w-full py-2.5 rounded-lg bg-surface-sunken text-primary font-sans font-semibold shadow-neu-pressed hover:bg-surface-dim transition-colors flex items-center justify-center gap-2 group-hover:text-primary-hover min-h-[44px] cursor-pointer"
               >
                 View Full Report
                 <span className="material-symbols-outlined text-[18px]">arrow_forward</span>

@@ -6,6 +6,10 @@ import TopNav from "@/components/TopNav";
 import Dashboard from "@/components/Dashboard";
 import NewDiagnosisDrawer from "@/components/NewDiagnosisDrawer";
 import PhotoUploadModal from "@/components/PhotoUploadModal";
+import SearchModal from "@/components/SearchModal";
+import { PinoutViewerModal } from "@/components/PinoutViewerModal";
+import KeyboardShortcutsModal from "@/components/KeyboardShortcutsModal";
+import ToastNotification from "@/components/ToastNotification";
 import ProcessingView from "@/components/ProcessingView";
 import ReportView from "@/components/ReportView";
 import ActiveProjectsView from "@/components/ActiveProjectsView";
@@ -57,6 +61,15 @@ export default function Home() {
         if (result.success) {
           setAnalysisResult(result.record || { data: result.data });
           setViewState("report");
+          document.dispatchEvent(
+            new CustomEvent("show-toast", {
+              detail: {
+                type: "success",
+                title: "Diagnosis Generated!",
+                message: "AI analysis & diagnostic steps ready.",
+              },
+            })
+          );
         } else {
           console.error(result.error);
           alert(`Analysis Error: ${result.error}`);
@@ -84,7 +97,15 @@ export default function Home() {
       <div className="flex-1 flex flex-col md:ml-[280px] w-full md:max-w-[calc(100%-280px)] h-screen overflow-hidden bg-background">
         <TopNav />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative">
-          {viewState === "dashboard" && <Dashboard />}
+          {viewState === "dashboard" && (
+            <Dashboard
+              onViewChange={setViewState}
+              onViewReport={(result) => {
+                setAnalysisResult(result);
+                setViewState("report");
+              }}
+            />
+          )}
           {viewState === "processing" && <ProcessingView imageFile={imageFile} />}
           {viewState === "report" && (
             <ReportView
@@ -118,6 +139,10 @@ export default function Home() {
 
       <NewDiagnosisDrawer />
       <PhotoUploadModal />
+      <SearchModal />
+      <PinoutViewerModal />
+      <KeyboardShortcutsModal />
+      <ToastNotification />
     </div>
   );
 }

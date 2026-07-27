@@ -3,6 +3,7 @@ import { verifyUserToken, getAdminFirestore } from "@/lib/firebase-admin";
 import { getGeminiClient } from "@/lib/ai/client";
 import { MODELS } from "@/lib/ai/models";
 import { GeneratedReference, normalizeDiagnosis } from "@/lib/types";
+import { parseGeminiError } from "@/lib/ai/errors";
 
 export const runtime = "nodejs";
 
@@ -66,6 +67,7 @@ export async function POST(req: NextRequest) {
 
     const client = getGeminiClient();
     let generatedImageBase64 = "";
+    let lastError: any = null;
 
     const selectedImageModel = MODELS.imageModel || "imagen-3.0-generate-002";
 
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
           generatedImageBase64 = `data:image/png;base64,${img.imageBytes}`;
         }
       } catch (genImgErr: any) {
+        lastError = genImgErr;
         console.warn("client.models.generateImages failed, trying generateContent fallback:", genImgErr?.message || genImgErr);
       }
     }
@@ -116,17 +119,23 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (genContentErr: any) {
+        lastError = genContentErr;
         console.error("client.models.generateContent image generation failed:", genContentErr?.message || genContentErr);
       }
     }
 
     if (!generatedImageBase64) {
+      const parsedErr = parseGeminiError(lastError);
+      const responseHeaders: Record<string, string> = {};
+      if (parsedErr.retryAfter) {
+        responseHeaders["Retry-After"] = String(parsedErr.retryAfter);
+      }
       return NextResponse.json(
         {
-          error: "Reference diagram generation failed via Gemini Image model.",
-          code: "GEMINI_SERVICE_UNAVAILABLE",
+          error: parsedErr.message,
+          code: parsedErr.code,
         },
-        { status: 503 }
+        { status: parsedErr.status, headers: responseHeaders }
       );
     }
 
@@ -153,9 +162,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Reference diagram route error:", err);
+    const parsedErr = parseGeminiError(err);
+    const responseHeaders: Record<string, string> = {};
+    if (parsedErr.retryAfter) {
+      responseHeaders["Retry-After"] = String(parsedErr.retryAfter);
+    }
     return NextResponse.json(
-      { error: err?.message || "Internal server error.", code: err?.code || "INTERNAL_SERVER_ERROR" },
-      { status: err?.status || 500 }
+      { error: parsedErr.message, code: parsedErr.code },
+      { status: parsedErr.status, headers: responseHeaders }
     );
   }
 }

@@ -4,7 +4,7 @@ import { runGeminiAnalysis, EvidenceInputPart } from "@/lib/ai/interactions";
 import { buildAnalysisPrompt } from "@/lib/ai/prompts";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { EvidenceItem, normalizeDiagnosis } from "@/lib/types";
-import { GeminiServiceError } from "@/lib/ai/errors";
+import { parseGeminiError } from "@/lib/ai/errors";
 
 export const runtime = "nodejs";
 
@@ -204,13 +204,6 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Gemini Analyze Route Error:", error);
 
-    if (error instanceof GeminiServiceError) {
-      return NextResponse.json(
-        { error: error.message, code: error.code },
-        { status: error.status }
-      );
-    }
-
     if (error instanceof FirebaseAdminError) {
       return NextResponse.json(
         { error: error.message, code: error.code },
@@ -218,9 +211,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const parsedErr = parseGeminiError(error);
+    const headers: Record<string, string> = {};
+    if (parsedErr.retryAfter) {
+      headers["Retry-After"] = String(parsedErr.retryAfter);
+    }
     return NextResponse.json(
-      { error: error?.message || "Failed to run diagnosis.", code: error?.code || "INTERNAL_SERVER_ERROR" },
-      { status: error?.status || 500 }
+      { error: parsedErr.message, code: parsedErr.code },
+      { status: parsedErr.status, headers }
     );
   }
 }

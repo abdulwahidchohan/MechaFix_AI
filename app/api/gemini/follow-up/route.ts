@@ -4,7 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { MODELS } from "@/lib/ai/models";
 import { getGeminiClient } from "@/lib/ai/client";
-import { GeminiServiceError } from "@/lib/ai/errors";
+import { parseGeminiError } from "@/lib/ai/errors";
 
 export const runtime = "nodejs";
 
@@ -170,13 +170,6 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
   } catch (error: any) {
     console.error("Follow-Up AI Error:", error);
 
-    if (error instanceof GeminiServiceError) {
-      return NextResponse.json(
-        { error: error.message, code: error.code },
-        { status: error.status }
-      );
-    }
-
     if (error instanceof FirebaseAdminError) {
       return NextResponse.json(
         { error: error.message, code: error.code },
@@ -184,9 +177,14 @@ ${ragContext ? `KNOWLEDGE BASE RETRIEVED CONTEXT:\n${ragContext}\n` : ""}
       );
     }
 
+    const parsedErr = parseGeminiError(error);
+    const headers: Record<string, string> = {};
+    if (parsedErr.retryAfter) {
+      headers["Retry-After"] = String(parsedErr.retryAfter);
+    }
     return NextResponse.json(
-      { error: error?.message || "Failed to process follow-up question.", code: error?.code || "INTERNAL_SERVER_ERROR" },
-      { status: error?.status || 500 }
+      { error: parsedErr.message, code: parsedErr.code },
+      { status: parsedErr.status, headers }
     );
   }
 }

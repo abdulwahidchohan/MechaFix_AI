@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { db, auth } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { normalizeFirestoreDate } from "@/lib/date-utils";
 
 interface Diagnosis {
   id: string;
   createdAt: Date;
   board?: string;
   component?: string;
-  status?: string;
-  context?: string;
+  status: string;
+  context: string;
   resolution?: {
     rootCause?: string;
     actionTaken?: string;
@@ -24,29 +25,6 @@ interface Diagnosis {
     potential_causes: string[];
     troubleshooting_steps: string[];
   };
-}
-
-function parseCreatedAt(value: any): Date {
-  if (!value) return new Date();
-
-  if (typeof value?.toDate === "function") {
-    return value.toDate();
-  }
-
-  if (value instanceof Date) {
-    return value;
-  }
-
-  if (typeof value?.seconds === "number") {
-    return new Date(value.seconds * 1000);
-  }
-
-  if (typeof value === "string" || typeof value === "number") {
-    const parsed = new Date(value);
-    if (!isNaN(parsed.getTime())) return parsed;
-  }
-
-  return new Date();
 }
 
 export default function RepairHistoryView({ onViewReport }: { onViewReport?: (result: any) => void }) {
@@ -71,7 +49,7 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
             const data = doc.data();
             return {
               id: doc.id,
-              createdAt: parseCreatedAt(data.createdAt),
+              createdAt: normalizeFirestoreDate(data.createdAt),
               board: data.board,
               component: data.component,
               status: data.status || "in_progress",

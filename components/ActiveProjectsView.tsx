@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { normalizeFirestoreDate } from "@/lib/date-utils";
 
 interface Diagnosis {
   id: string;
@@ -37,7 +38,7 @@ export default function ActiveProjectsView({ onViewReport }: { onViewReport: (re
         const data = doc.data();
         return {
           id: doc.id,
-          createdAt: data.createdAt?.toDate() || new Date(),
+          createdAt: normalizeFirestoreDate(data.createdAt),
           context: data.context || "",
           result: data.result || {}
         } as Diagnosis;

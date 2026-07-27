@@ -176,12 +176,22 @@ export interface DiagnosisRecord {
   }>;
 }
 
+import { normalizeFirestoreDate } from "./date-utils";
+
 /**
  * Backward compatibility helper to convert version 1 DiagnosisRecord to version 2
  */
 export function normalizeDiagnosis(record: DiagnosisRecord): DiagnosisRecord {
   const norm: DiagnosisRecord = { ...record };
   norm.version = "2";
+
+  norm.createdAt = normalizeFirestoreDate(norm.createdAt).toISOString();
+  if (norm.updatedAt) {
+    norm.updatedAt = normalizeFirestoreDate(norm.updatedAt).toISOString();
+  }
+  if (norm.resolvedAt) {
+    norm.resolvedAt = normalizeFirestoreDate(norm.resolvedAt).toISOString();
+  }
 
   if (!norm.status) {
     norm.status = "in_progress";

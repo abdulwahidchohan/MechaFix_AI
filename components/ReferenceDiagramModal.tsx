@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { GeneratedReference } from "@/lib/types";
+import { parseResponseJson } from "@/lib/utils";
 import { Image as ImageIcon, Sparkles, AlertTriangle, Download, X } from "lucide-react";
 
 interface ReferenceDiagramModalProps {
@@ -63,8 +64,8 @@ export function ReferenceDiagramModal({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const data = await parseResponseJson(res);
+      if (!data.success) {
         throw new Error(data.error || "Failed to generate reference diagram.");
       }
 

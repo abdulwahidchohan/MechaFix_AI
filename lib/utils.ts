@@ -20,13 +20,23 @@ export async function parseResponseJson<T = any>(res: Response): Promise<T> {
 
   if (contentType.includes("text/html") || text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html")) {
     throw new Error(
-      `Server configuration error (HTTP ${res.status}). Please verify Vercel environment variables or API server availability.`
+      `Server configuration error (HTTP ${res.status}). Please verify Vercel environment variables (GEMINI_API_KEY, FIREBASE_SERVICE_ACCOUNT_KEY) in Vercel Project Settings.`
     );
   }
 
+  let parsed: any;
   try {
-    return JSON.parse(text) as T;
+    parsed = JSON.parse(text);
   } catch (err) {
     throw new Error(`Invalid server response (HTTP ${res.status}): ${text.slice(0, 100)}`);
   }
+
+  if (!res.ok) {
+    const errorMsg =
+      (typeof parsed === "object" && parsed !== null && (parsed.error || parsed.message)) ||
+      `Server error (HTTP ${res.status})`;
+    throw new Error(errorMsg);
+  }
+
+  return parsed as T;
 }

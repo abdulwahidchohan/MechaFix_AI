@@ -6,6 +6,8 @@ import { retrieveContext } from "@/lib/rag/retrieve";
 import { parseApiError } from "@/lib/ai/errors";
 import { StepResult, DiagnosisRecord } from "@/lib/types";
 
+export const runtime = "nodejs";
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization") || "";

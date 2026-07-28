@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { auth } from "@/lib/firebase";
 import { Measurement } from "@/lib/types";
+import { parseResponseJson } from "@/lib/utils";
 
 interface MeasurementDrawerProps {
   diagnosisId?: string;
@@ -94,7 +95,7 @@ export default function MeasurementDrawer({
           }),
         });
 
-        const data = await res.json();
+        const data = await parseResponseJson(res);
         if (data.success) {
           onMeasurementAdded(data.measurement || localMeas);
           resetForm();

@@ -6,6 +6,8 @@ import { retrieveContext } from "@/lib/rag/retrieve";
 import { parseGeminiError } from "@/lib/ai/errors";
 import { EvidenceItem } from "@/lib/types";
 
+export const runtime = "nodejs";
+
 function validateImagesPayload(images: any[]): any[] {
   const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
   if (images.length > 5) {

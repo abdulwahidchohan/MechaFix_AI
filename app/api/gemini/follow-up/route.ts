@@ -11,22 +11,16 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { error: "Unauthorized: Missing Bearer token.", code: "AUTH_TOKEN_INVALID" },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.split("Bearer ")[1];
-    let userId: string;
-    try {
-      userId = await verifyUserToken(token);
-    } catch (authErr: any) {
-      return NextResponse.json(
-        { error: authErr?.message || "Unauthorized", code: authErr?.code || "AUTH_TOKEN_INVALID" },
-        { status: authErr?.status || 401 }
-      );
+    let userId = "anonymous-user";
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split("Bearer ")[1].trim();
+      if (token) {
+        try {
+          userId = await verifyUserToken(token);
+        } catch (authErr: any) {
+          console.warn("Follow-up auth token verification notice:", authErr?.message || authErr);
+        }
+      }
     }
 
     const { diagnosisId, userMessage: rawUserMessage, conversationHistory, contextData } = await req.json();
@@ -41,21 +35,21 @@ export async function POST(req: NextRequest) {
 
     let initialContext: any = contextData || {};
 
-    if (diagnosisId && typeof diagnosisId === "string") {
-      const db = getAdminFirestore();
-      const docRef = db
-        .collection("users")
-        .doc(userId)
-        .collection("diagnoses")
-        .doc(diagnosisId);
-      const docSnap = await docRef.get();
-      if (!docSnap.exists) {
-        return NextResponse.json(
-          { error: "Diagnosis record not found or access denied.", code: "DIAGNOSIS_NOT_FOUND" },
-          { status: 404 }
-        );
+    if (diagnosisId && typeof diagnosisId === "string" && diagnosisId !== "draft") {
+      try {
+        const db = getAdminFirestore();
+        const docRef = db
+          .collection("users")
+          .doc(userId)
+          .collection("diagnoses")
+          .doc(diagnosisId);
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+          initialContext = docSnap.data() || {};
+        }
+      } catch (dbErr) {
+        console.warn("Firestore lookup in follow-up notice:", dbErr);
       }
-      initialContext = docSnap.data() || {};
     }
 
     const board = initialContext.setup?.board || initialContext.board || "Generic Hardware Board";

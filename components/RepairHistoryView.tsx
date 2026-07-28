@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { db, auth } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { normalizeFirestoreDate } from "@/lib/date-utils";
+import { parseResponseJson } from "@/lib/utils";
 
 interface Diagnosis {
   id: string;
@@ -91,7 +92,7 @@ export default function RepairHistoryView({ onViewReport }: { onViewReport?: (re
           status: "in_progress",
         }),
       });
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (!data.success) {
         alert(`Failed to reopen diagnosis: ${data.error}`);
       }

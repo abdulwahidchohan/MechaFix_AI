@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { auth } from "@/lib/firebase";
+import { parseResponseJson } from "@/lib/utils";
 
 interface ResolveDiagnosisModalProps {
   diagnosisId: string;
@@ -72,7 +73,7 @@ export default function ResolveDiagnosisModal({
         }),
       });
 
-      const data = await res.json();
+      const data = await parseResponseJson(res);
       if (data.success) {
         onSuccess(targetStatus, { rootCause, actionTaken, finalNote });
         onClose();
